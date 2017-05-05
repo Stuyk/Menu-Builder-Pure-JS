@@ -9,6 +9,11 @@ Donate a few bucks: https://www.paypal.me/stuyk
 
 ---
 
+##### USE OF THIS CODE IS STRICTLY FOR THE GTA:NETWORK CLIENT.
+##### USE OF THE CODE ELSEWHERE IS STRICTLY PROHIBITED.
+
+---
+
 ### Brief how to use it:
 
 ```
