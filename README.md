@@ -15,49 +15,111 @@ Donate a few bucks: https://www.paypal.me/stuyk
 ---
 
 ### Brief how to use it:
-
 ```
-// This sets up your menu with how many pages you want to use.
-resource.menu_builder.setupMenu(pageAmount);
-// Page, Grid Start X, Grid Start Y, Grid Width, Grid Height, HeaderType?, Text
-let panel = resource.menu_builder.createPanel(0, 1, 1, 2, 2, false, "Test");
-// Page Number, Grid X, Grid Y, Width, Height, Type, "Text"
-let button = resource.menu_builder.createButton(0, 16, 11, 4, 1, 0, "NextPage"); 
-args = [1]; // Deposit is on Index 1.
-button.addArgs(args); // Push our array of arguments to the function. These are optional btw.
-button.function(resource.menu_builder.nextPage) // Can also do setPage, prevPage
-// Show Cursor, Hide Chat, Hide Hud, Blur It?, Disable Chat Access
-resource.menu_builder.openMenu(true, false, false, true, false);
-```
+let menu: Menu = resource.menu_builder.createMenu(2);
+let panel: Panel;
 
-Another Example
+let inputPanel: InputPanel;
+let textElement: TextElement;
+// Create buttons / headers for all pages.
+for (var i = 0; i < 2; i++) {
+    // Header Panels
+    panel = menu.createPanel(i, 12, 1, 8, 2);
+    panel.MainBackgroundColor(92, 49, 4, 255);
+    panel.Header = true;
+    textElement = panel.addText(`Menu Builder`);
+    textElement.Centered = true;
+    textElement.Font = 1;
+    textElement.Color(206, 213, 206, 255);
+    textElement = panel.addText(`Page ( ${i} / 1 )`);
+    textElement.Font = 4;
+    textElement.Color(206, 213, 206, 255);
+    textElement.Centered = true;
+    textElement.FontScale = 0.45;
+    // Previous Page
+    panel = menu.createPanel(i, 11, 1, 1, 2);
+    panel.MainBackgroundColor(92, 49, 4, 255);
+    panel.Function = menu.prevPage;
+    panel.Header = true;
+    panel.Hoverable = true;
+    panel.HoverBackgroundColor(154, 110, 64, 255);
+    panel.Tooltip = "Previous Page";
+    textElement = panel.addText("<");
+    textElement.Centered = true;
+    textElement.VerticalCentered = true;
+    textElement.Color(206, 213, 206, 255);
+    // Next Page
+    panel = menu.createPanel(i, 20, 1, 1, 2);
+    panel.MainBackgroundColor(92, 49, 4, 255);
+    panel.Function = menu.nextPage;
+    panel.Header = true;
+    panel.Hoverable = true;
+    panel.HoverBackgroundColor(154, 110, 64, 255);
+    panel.Tooltip = "Next Page";
+    textElement = panel.addText(">");
+    textElement.VerticalCentered = true;
+    textElement.Centered = true;
+    textElement.Color(206, 213, 206, 255);
+}
+panel = menu.createPanel(0, 11, 3, 10, 10);
+panel.MainBackgroundColor(206, 213, 206, 255);
+// Line Element 0
+textElement = panel.addText(`Line 0`);
+textElement.Centered = true;
+textElement.Font = 4;
+textElement.FontScale = 0.4;
+textElement.Color(83, 117, 40, 255);
+// Line Element 1
+textElement = panel.addText(`Line 1`);
+textElement.Centered = true;
+textElement.Font = 4;
+textElement.FontScale = 0.4;
+textElement.Color(83, 117, 40, 255);
+// Line Element 2
+textElement = panel.addText(`Line 2`);
+textElement.Centered = true;
+textElement.Font = 4;
+textElement.FontScale = 0.4;
+textElement.Color(83, 117, 40, 255);
+// Example Function Button
+panel = menu.createPanel(0, 11, 13, 10, 1);
+panel.MainBackgroundColor(47, 76, 22, 255);
+panel.Hoverable = true;
+panel.Header = true;
+panel.Function = testMessage;
+panel.HoverBackgroundColor(83, 117, 40, 255);
+textElement = panel.addText(`Fire Event`);
+textElement.Centered = true;
+textElement.VerticalCentered = true;
+textElement.Font = 4;
+textElement.FontScale = 0.5;
+textElement.Color(206, 213, 206, 255);
+API.showCursor(true);
 
-```
-// Setup our menu.
-resource.menu_builder.setupMenu(1); // Setup at Index 0;
-let currentPage = 0;                // Set a local variable for the page we're working on.
+// Second Page Input Panel Example / Image
+panel = menu.createPanel(1, 11, 3, 10, 5);
+panel.MainBackgroundColor(206, 213, 206, 255);
+panel.MainBackgroundImagePadding = 10;
+panel.MainBackgroundImage = "clientside/resources/images/backgrounds/background_2.jpg";
 
-// Create a Heading Panel
-let panel = resource.menu_builder.createPanel(currentPage, 12, 4, 8, 2, true, "Header"); // Page Number, Start X, Start Y, Width, Height, isHeading?, Text/String
-panel.setCentered(); // Center our text.
+panel = menu.createPanel(1, 11, 8, 10, 5);
+panel.MainBackgroundColor(206, 213, 206, 255);
+textElement = panel.addText(`Regular Input`);
+textElement.Color(83, 117, 40, 255);
+textElement = panel.addText(` `);
+inputPanel = panel.addInput(0, 1, 10, 1);
+inputPanel.MainBackgroundColor(0, 0, 0, 100);
+inputPanel.HoverBackgroundColor(0, 0, 0, 75);
+inputPanel.SelectBackgroundColor(0, 0, 0, 125);
+textElement = panel.addText(`Numeric Input`);
+textElement.Color(83, 117, 40, 255);
+inputPanel = panel.addInput(0, 3, 10, 1);
+inputPanel.NumericOnly = true;
+inputPanel.MainBackgroundColor(0, 0, 0, 100);
+inputPanel.HoverBackgroundColor(0, 0, 0, 75);
+inputPanel.SelectBackgroundColor(0, 0, 0, 125);
 
-// Create a Normal Panel
-let string_message = "My Test Message";
-panel = resource.menu_builder.createPanel(currentPage, 12, 6, 8, 2, false, string_message);
-panel.setCentered();
-// Create a Filler Panel
-panel = resource.menu_builder.createPanel(currentPage, 12, 8, 8, 2, false, "http://www.stuyk.com/ ~n~ Stuyk - 2017 - Trevor W.");
-panel.setCentered();
-
-// Create an Agreement Button.
-let agree = resource.menu_builder.createButton(currentPage, 12, 10, 4, 1, 1, "Agree");
-agree.function(navigateShowLogin);
-// Create a Disagree Button.
-let disagree = resource.menu_builder.createButton(currentPage, 16, 10, 4, 1, 3, "Disagree");
-disagree.function(resource.menu_eula.menu_Eula_Disconnect);
-
-// Open our menu.
-resource.menu_builder.openMenu(true, false, false, true, false);
+menu.Ready = true;
 ```
 
 If you would like to really learn how to use this resource. You're going to have to look at the functions near the bottom and study the different methods you can access inside of the classes.
