@@ -1,25 +1,155 @@
 ﻿var screenX = API.getScreenResolutionMantainRatio().Width;
 var screenY = API.getScreenResolutionMantainRatio().Height;
-// Built for 16:9
-var panelMinX = (screenX / 32); // 1920 = 128
-var panelMinY = (screenY / 18); // 1080 = 120
-// Menu Elements
-var debugTest = true;
+var panelMinX = (screenX / 32);
+var panelMinY = (screenY / 18);
 var button = null;
 var panel = null;
 var image = null;
-var menuElements = [];
 var notification = null;
 var notifications = [];
 var textnotification = null;
 var textnotifications = [];
-var currentPage = 0;
 var padding = 10;
-// Set to True when your menu is ready.
-var menuIsReady = false;
-var selectedInput = null;
-// Animation Stuff
-var animationFrames = 0;
+var selectedInput: InputPanel = null;
+
+// Menu Properties
+var tabIndex = [];
+var tab: number = 0;
+var menuElements = [];
+var isReady = false;
+var currentPage = 0;
+var clickDelay = new Date().getTime();
+
+// On-Update Event -- Draws all of our stuff.
+API.onUpdate.connect(function () {
+    // Notifications can be global.
+    drawNotification();
+    drawTextNotification();
+
+    if (!isReady) {
+        return;
+    }
+
+    if (menuElements.length < 1) {
+        return;
+    }
+
+    if (currentPage === null) {
+        return;
+    }
+
+    if (!Array.isArray(menuElements[currentPage])) {
+        return;
+    }
+
+    if (menuElements[currentPage].length < 1) {
+        return;
+    }
+
+    for (var i = 0; i < menuElements[currentPage].length; i++) {
+        menuElements[currentPage][i].draw();
+        menuElements[currentPage][i].isHovered();
+        menuElements[currentPage][i].isClicked();
+    }
+
+    // 0 - 1
+    // Page - Page
+    // Panel - Panel
+    // Panel - Panel
+    // Panel - Panel
+});
+
+/**
+ * Initialize how many pages our menu is going to have.
+ * @param pages - Number of pages.
+ */
+function createMenu(pages: number) {
+    let menu = new Menu(pages);
+    return menu;
+}
+
+class Menu {
+    private _blur: boolean;
+    private _overlays: boolean;
+
+    constructor(pages: number) {
+        if (Array.isArray(menuElements[0])) {
+            return;
+        }
+
+        for (var i = 0; i < pages; i++) {
+            let emptyArray = [];
+            menuElements.push(emptyArray);
+        }
+        this._blur = false;
+    }
+
+    /** Start drawing our menu. */
+    set Ready(value: boolean) {
+        isReady = value;
+    }
+
+    get Ready(): boolean {
+        return isReady;
+    }
+
+    /** Used to blur the background behind the menu. */
+    set Blur(value: boolean) {
+        this._blur = value;
+        if (value) {
+            API.callNative("_TRANSITION_TO_BLURRED", 3000);
+        } else {
+            API.callNative("_TRANSITION_FROM_BLURRED", 3000);
+        }
+    }
+
+    get Blur(): boolean {
+        return this._blur;
+    }
+
+    set DisableOverlays(value: boolean) {
+        this._overlays = value;
+        if (value) {
+            API.setHudVisible(false);
+            API.setChatVisible(false);
+            API.setCanOpenChat(false);
+        } else {
+            API.setHudVisible(true);
+            API.setChatVisible(true);
+            API.setCanOpenChat(true);
+        }
+    }
+
+    public nextPage() {
+        if (currentPage + 1 > menuElements.length - 1) {
+            currentPage = 0;
+            return;
+        }
+        currentPage++;
+    }
+
+    public prevPage() {
+        if (currentPage - 1 < 0) {
+            currentPage = menuElements.length - 1;
+            return;
+        }
+        currentPage--;
+    }
+
+    /**
+     * Create a new panel.
+     * @param page - The page you would like to add panels to.
+     * @param xStart
+     * @param yStart
+     * @param xGridWidth
+     * @param yGridHeight
+     */
+    public createPanel(page: number, xStart: number, yStart: number, xGridWidth: number, yGridHeight: number) {
+        let newPanel: Panel = new Panel(page, xStart, yStart, xGridWidth, yGridHeight);
+        menuElements[page].push(newPanel);
+        return newPanel;
+    }
+}
 
 class PlayerTextNotification {
     _xPos: number;
@@ -256,7 +386,6 @@ class Notification {
     }
 
     cleanUpNotification() {
-        animationFrames = 0;
         notification = null;
     }
 
@@ -287,266 +416,1020 @@ class Notification {
     }
 }
 
-class PanelImage {
-    _xPos: number;
-    _yPos: number;
-    _width: number;
-    _height: number;
-    _path: string;
-
-    constructor(path, x, y, width, height) {
-        this._path = path;
-        this._xPos = x * panelMinX;
-        this._yPos = y * panelMinY;
-        this._width = width * panelMinX;
-        this._height = height * panelMinY
+class TextElement {
+    // Positioning
+    private _xPos: number;
+    private _yPos: number;
+    private _width: number;
+    private _height: number;
+    private _line: number;
+    private _padding: number;
+    private _hovered: boolean;
+    // Main Elements
+    private _text: string;
+    private _font: number;
+    private _fontR: number;
+    private _fontG: number;
+    private _fontB: number;
+    private _fontAlpha: number;
+    private _fontScale: number;
+    private _shadow: boolean;
+    private _outline: boolean;
+    // Hover Text
+    private _hoverTextR: number;
+    private _hoverTextG: number;
+    private _hoverTextB: number;
+    private _hoverTextAlpha: number;
+    // Should we center it?
+    private _centered: boolean;
+    private _centeredVertically: boolean;
+    private _offset: number;
+    // Constructor
+    constructor(text: string, x: number, y: number, width: number, height: number, line: number) {
+        this._xPos = x;
+        this._yPos = y + (panelMinY * line);
+        this._width = width;
+        this._height = height;
+        this._text = text;
+        this._fontScale = 0.6;
+        this._centered = false;
+        this._centeredVertically = false;
+        this._font = 4;
+        this._fontR = 255;
+        this._fontG = 255;
+        this._fontB = 255;
+        this._fontAlpha = 255;
+        this._hoverTextAlpha = 255;
+        this._hoverTextR = 255;
+        this._hoverTextG = 255;
+        this._hoverTextB = 255;
+        this._offset = 0;
+        this._padding = 10;
+        this._hovered = false;
+        this._shadow = false;
+        this._outline = false;
     }
 
     draw() {
-        API.dxDrawTexture(this._path, new Point(this._xPos, this._yPos), new Size(this._width, this._height), 0);
+        if (this._centered && this._centeredVertically) {
+            this.drawAsCenteredAll();
+            return;
+        }
+
+        if (this._centered) {
+            this.drawAsCentered();
+            return;
+        }
+
+        if (this._centeredVertically) {
+            this.drawAsCenteredVertically();
+            return;
+        }
+
+        this.drawAsNormal();
     }
 
-    isHovered() {
-        return;
+    //** Is this text element in a hover state? */
+    set Hovered(value: boolean) {
+        this._hovered = value;
     }
 
-    isClicked() {
-        return;
+    get Hovered(): boolean {
+        return this._hovered;
     }
 
-    returnType() {
-        return "PanelImage";
+    //** Sets the color of the main text. A = Alpha */
+    public Color(r: number, g: number, b: number, a: number) {
+        this._fontR = r;
+        this._fontG = g;
+        this._fontB = b;
+        this._fontAlpha = a;
+    }
+
+    /** Sets the color for RGB of R type. Max of 255 */
+    set R(value: number) {
+        this._fontR = value;
+    }
+
+    /** Gets the color for RGB of R type. */
+    get R(): number {
+        return this._fontR;
+    }
+
+    /** Sets the color for RGB of G type. Max of 255 */
+    set G(value: number) {
+        this._fontG = value;
+    }
+
+    /** Gets the color for RGB of G type. */
+    get G(): number {
+        return this._fontG;
+    }
+
+    /** Sets the color for RGB of B type. Max of 255 */
+    set B(value: number) {
+        this._fontB = value;
+    }
+
+    /** Gets the color for RGB of B type. */
+    get B(): number {
+        return this._fontB;
+    }
+
+    /** Sets the font Alpha property */
+    set Alpha(value: number) {
+        this._fontAlpha = value;
+    }
+
+    get Alpha(): number {
+        return this._fontAlpha;
+    }
+
+    /** Sets the font Alpha property */
+    set HoverAlpha(value: number) {
+        this._hoverTextAlpha = value;
+    }
+
+    get HoverAlpha(): number {
+        return this._hoverTextAlpha;
+    }
+
+    /** Sets the hover color for the text RGB of R type. */
+    set HoverR(value: number) {
+        this._hoverTextR = value;
+    }
+
+    get HoverR(): number {
+        return this._hoverTextR;
+    }
+
+    /** Sets the hover color for the text RGB of G type. */
+    set HoverG(value: number) {
+        this._hoverTextG = value;
+    }
+
+    get HoverG(): number {
+        return this._hoverTextG;
+    }
+
+    /** Sets the hover color for the text RGB of B type. */
+    set HoverB(value: number) {
+        this._hoverTextB = value;
+    }
+
+    get HoverB(): number {
+        return this._hoverTextB;
+    }
+
+    /** Set your font type. 0 - 7 
+    * 0 Normal
+    * 1 Cursive
+    * 2 All Caps
+    * 3 Squares / Arrows / Etc.
+    * 4 Condensed Normal
+    * 5 Garbage
+    * 6 Condensed Normal
+    * 7 Bold GTA Style
+    */
+    set Font(value: number) {
+        this._font = value;
+    }
+
+    get Font(): number {
+        return this._font;
+    }
+
+    /** Sets the size of the text. 0.6 is pretty normal. 1 is quite large. */
+    set FontScale(value: number) {
+        this._fontScale = value;
+    }
+
+    get FontScale(): number {
+        return this._fontScale;
+    }
+
+    /** Centers the content vertically. Do not use if your box is not very high to begin with */
+    set VerticalCentered(value: boolean) {
+        this._centeredVertically = value;
+    }
+
+    get VerticalCentered(): boolean {
+        return this._centeredVertically;
+    }
+
+    /** Use this if you want centered content. */
+    set Centered(value: boolean) {
+        this._centered = value;
+    }
+
+    get Centered(): boolean {
+        return this._centered;
+    }
+
+    private drawAsCenteredAll() {
+        if (this._hovered) {
+            API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 20, this._fontScale, this._hoverTextR, this._hoverTextG, this._hoverTextB, this._hoverTextAlpha, this._font, 1, this._shadow, this._outline, this._width);
+            return;
+        }
+
+        API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 20, this._fontScale, this._fontR, this._fontG, this._fontB, this._fontAlpha, this._font, 1, this._shadow, this._outline, this._width);
+    }
+    private drawAsCenteredVertically() {
+        if (this._hovered) {
+            API.drawText(this._text, this._offset + this._xPos, this._yPos + (this._height / 2) - 20, this._fontScale, this._hoverTextR, this._hoverTextG, this._hoverTextB, this._hoverTextAlpha, this._font, 0, this._shadow, this._outline, this._width);
+            return;
+        }
+        API.drawText(this._text, this._offset + this._xPos, this._yPos + (this._height / 2) - 20, this._fontScale, this._fontR, this._fontG, this._fontB, this._fontAlpha, this._font, 0, this._shadow, this._outline, this._width);
+    }
+    private drawAsCentered() {
+        if (this._hovered) {
+            API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._padding + this._yPos, this._fontScale, this._hoverTextR, this._hoverTextG, this._hoverTextB, this._hoverTextAlpha, this._font, 1, this._shadow, this._outline, this._width);
+            return;
+        }
+        API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._padding + this._yPos, this._fontScale, this._fontR, this._fontG, this._fontB, this._fontAlpha, this._font, 1, this._shadow, this._outline, this._width);
+    }
+    private drawAsNormal() {
+        if (this._hovered) {
+            API.drawText(this._text, this._offset + this._xPos + this._padding, this._yPos + this._padding, this._fontScale, this._hoverTextR, this._hoverTextG, this._hoverTextB, this._hoverTextAlpha, this._font, 0, this._shadow, this._outline, this._width - this._padding);
+            return;
+        }
+        API.drawText(this._text, this._offset + this._xPos + this._padding, this._yPos + this._padding, this._fontScale, this._fontR, this._fontG, this._fontB, this._fontAlpha, this._font, 0, this._shadow, this._outline, this._width - this._padding);
     }
 }
 
 class Panel {
-    _xPos: number;
-    _yPos: number;
-    _width: number;
-    _height: number;
-    _text: string;
-    _header: boolean;
-    _textScale: number;
-    _centered: boolean;
-    _fontScale: number;
-    _centeredVertically: boolean;
-    _offset: number;
+    private _xPos: number;
+    private _yPos: number;
+    private _width: number;
+    private _height: number;
+    private _line: number;
+    private _header: boolean;
+    private _offset: number;
+    private _page: number;
+    private _r: number;
+    private _g: number;
+    private _b: number;
+    private _textLines: TextElement[];
+    private _inputPanels: InputPanel[];
+    private _currentLine: number;
+    private _alpha: number;
+    private _shadow: boolean;
+    private _outline: boolean;
+    private _padding: number;
+    private _tooltip: string;
+    private _hoverable: boolean;
+    private _hoverTime: number;
+    private _hovered: boolean;
+    private _hoverR: number;
+    private _hoverG: number;
+    private _hoverB: number;
+    private _hoverAlpha: number;
+    private _hoverAudioLib: string;
+    private _hoverAudioName: string;
+    private _hoverAudio: boolean;
+    private _backgroundImage: string;
+    private _backgroundImagePadding: number;
+    private _function: any;
+    private _functionArgs: any[];
+    private _functionAudioLib: string;
+    private _functionAudioName: string;
+    private _functionClickAudio: boolean;
 
-    constructor(x, y, width, height, isHeader, text) {
+    /**
+     * 
+     * @param x - Max of 31. Starts on left side.
+     * @param y - Max of 17. Starts at the top.
+     * @param width - Max of 31. Each number fills a square.
+     * @param height - Max of 17. Each number fills a square.
+     */
+    constructor(page, x, y, width, height) {
+        this._page = page;
+        this._padding = 10;
         this._xPos = x * panelMinX;
         this._yPos = y * panelMinY;
         this._width = width * panelMinX;
         this._height = height * panelMinY
-        this._text = text;
-        this._header = isHeader;
-        this._textScale = (panelMinY / (panelMinY * 10)) * height;
-        this._fontScale = (panelMinY / (panelMinY * 10)) * height + 0.2;
-        this._centered = false;
-        this._centeredVertically = false;
+        this._alpha = 225;
+        this._header = false;
         this._offset = 0;
-
-        if (this._textScale > 0.6) {
-            this._textScale = 0.6;
-        }
-
-        if (this._fontScale > 0.6) {
-            this._fontScale = 0.6;
-        }
+        this._r = 0;
+        this._g = 0;
+        this._b = 0;
+        this._textLines = [];
+        this._inputPanels = [];
+        this._currentLine = 0;
+        this._shadow = false;
+        this._outline = false;
+        this._tooltip = null;
+        this._hovered = false;
+        this._hoverTime = 0;
+        this._hoverR = 0;
+        this._hoverG = 0;
+        this._hoverB = 0;
+        this._hoverAlpha = 200;
+        this._backgroundImage = null;
+        this._backgroundImagePadding = 0;
+        this._function = null;
+        this._functionArgs = [];
+        this._functionAudioLib = "Click";
+        this._functionAudioName = "DLC_HEIST_HACKING_SNAKE_SOUNDS";
+        this._hoverAudioLib = "Cycle_Item";
+        this._hoverAudioName = "DLC_Dmod_Prop_Editor_Sounds";
+        this._hoverAudio = true;
+        this._functionClickAudio = true;
+        this._hoverable = false;
+        this._line = 0;
     }
-
+    /**
+     * Do not call this. It's specifically used for the menu builder file.
+     */
     draw() {
-        if (this._header) {
-            // If it's centered.
-            if (this._centered || this._centeredVertically) {
-                if (this._centered && this._centeredVertically) {
-                    API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 2) + (this._height / 4), this._textScale * 5, 255, 255, 255, 255, 1, 1, false, false, this._width - padding);
-                } else if (this._centered) {
-                    API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 4), this._textScale * 5, 255, 255, 255, 255, 1, 1, false, false, this._width - padding);
-                } else if (this._centeredVertically) {
-                    API.drawText(this._text, this._offset + this._xPos + padding, this._yPos + (this._height / 2) + (this._height / 4), this._textScale * 5, 255, 255, 255, 255, 1, 0, false, false, this._width - padding);
-                }
-            } else {
-                API.drawText(this._text, this._offset + this._xPos + padding, this._yPos + (this._height / 4), this._textScale * 5, 255, 255, 255, 255, 1, 0, false, false, this._width - padding);
+        if (this._page !== currentPage) {
+            return;
+        }
+        this.drawRectangles();
+        // Only used if using text lines.
+        if (this._textLines.length > 0) {
+            for (var i = 0; i < this._textLines.length; i++) {
+                this._textLines[i].draw();
             }
-
-            API.drawRectangle(this._xPos, this._yPos, this._width, this._height, 0, 0, 0, 225);
-            API.drawRectangle(this._xPos, this._yPos + this._height - 5, this._width, 5, 255, 255, 255, 50);
-        } else {
-            if (this._centered || this._centeredVertically) {
-                if (this._centered && this._centeredVertically) {
-                    API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 20, this._fontScale - (this._fontScale / 4), 255, 255, 255, 255, 4, 1, false, false, this._width - padding);
-                } else if (this._centered) {
-                    API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 4), this._fontScale - (this._fontScale / 4), 255, 255, 255, 255, 4, 1, false, false, this._width - padding);
-                } else if (this._centeredVertically) {
-                    API.drawText(this._text, this._offset + this._xPos + padding, this._yPos + (this._height / 2) + (this._height / 4), this._fontScale - (this._fontScale / 4), 255, 255, 255, 255, 4, 0, false, false, this._width - padding);
-                }
-            } else {
-                API.drawText(this._text, this._offset + this._xPos + padding, this._yPos + (this._height / 4), this._fontScale - (this._fontScale / 4), 255, 255, 255, 255, 4, 0, false, false, this._width - padding);
+        }
+        // Only used if using input panels.
+        if (this._inputPanels.length > 0) {
+            for (var i = 0; i < this._inputPanels.length; i++) {
+                this._inputPanels[i].draw();
             }
-
-            API.drawRectangle(this._xPos, this._yPos, this._width, this._height, 0, 0, 0, 225);
         }
     }
+    // Normal Versions
+    private drawRectangles() {
+        if (this._backgroundImage !== null) {
+            this.drawBackgroundImage();
+            return;
+        }
 
-    setText(value) {
-        this._text = value;
+
+        if (this._hovered) {
+            API.drawRectangle(this._xPos, this._yPos, this._width, this._height, this._hoverR, this._hoverG, this._hoverB, this._hoverAlpha);
+            if (this._header) {
+                API.drawRectangle(this._xPos, this._yPos + this._height - 5, this._width, 5, 255, 255, 255, 50);
+            }
+            return;
+        }
+
+        API.drawRectangle(this._xPos, this._yPos, this._width, this._height, this._r, this._g, this._b, this._alpha);
+        if (this._header) {
+            API.drawRectangle(this._xPos, this._yPos + this._height - 5, this._width, 5, 255, 255, 255, 50);
+        }
+    }
+    private drawBackgroundImage() {
+        if (this._backgroundImagePadding > 1) {
+            API.dxDrawTexture(this._backgroundImage, new Point(this._xPos + this._backgroundImagePadding, this._yPos + this._backgroundImagePadding), new Size(this._width - (this._backgroundImagePadding * 2), this._height - (this._backgroundImagePadding * 2)), 0);
+            API.drawRectangle(this._xPos, this._yPos, this._width, this._height, this._r, this._g, this._b, this._alpha);
+            return;
+        }
+        API.dxDrawTexture(this._backgroundImage, new Point(this._xPos, this._yPos), new Size(this._width, this._height), 0);
+    }
+    // Function Settings
+    set Function(value: any) {
+        this._function = value;
     }
 
-    setTextScale(value) {
-        this._textScale = value;
+    /** Add an array or a single value as a function. IMPORTANT! Any function you write must be able to take an array of arguments. */
+    public addFunctionArgs(value: any) {
+        if (Array.isArray(value)) {
+            this._functionArgs = value;
+        } else {
+            this._functionArgs.push(value);
+        }
+    }
+    // HOVER AUDIO
+    /** Sets the hover audio library. Ex: "Cycle_Item" */
+    set HoverAudioLib(value: string) {
+        this._hoverAudioLib = value;
     }
 
-    setFontScale(value) {
-        this._fontScale = value;
+    get HoverAudioLib(): string {
+        return this._hoverAudioLib;
     }
 
-    setVerticalCentered() {
-        this._centeredVertically = true;
+    /** Sets the hover audio name. Ex: "DLC_Dmod_Prop_Editor_Sounds" */
+    set HoverAudioName(value: string) {
+        this._hoverAudioName = value;
     }
 
-    setCentered() {
-        this._centered = true;
+    get HoverAudioName(): string {
+        return this._hoverAudioName;
     }
 
-    isHovered() {
-        return;
+    // FUNCTION AUDIO
+    /** Sets the function audio library. Ex: "Cycle_Item" */
+    set FunctionAudioLib(value: string) {
+        this._functionAudioLib = value;
     }
 
-    isClicked() {
-        return;
+    get FunctionAudioLib(): string {
+        return this._functionAudioLib;
     }
 
-    setOffset(value) {
+    /** Sets the function audio name. Ex: "DLC_Dmod_Prop_Editor_Sounds" */
+    set FunctionAudioName(value: string) {
+        this._functionAudioName = value;
+    }
+
+    get FunctionAudioName(): string {
+        return this._functionAudioName;
+    }
+
+    /** Sets if the function audio plays. */
+    set FunctionAudio(value: boolean) {
+        this._functionClickAudio = value;
+    }
+
+    get FunctionAudio(): boolean {
+        return this._functionClickAudio;
+    }
+
+    // Background Alpha
+    /** Sets the background alpha property */
+    set MainAlpha(value: number) {
+        this._alpha = value;
+    }
+
+    get MainAlpha(): number {
+        return this._alpha;
+    }
+
+    /** Sets the background image padding property */
+    set MainBackgroundImagePadding(value: number) {
+        this._backgroundImagePadding = value;
+    }
+
+    get MainBackgroundImagePadding(): number {
+        return this._backgroundImagePadding;
+    }
+
+    /** Uses a custom image for your panel background. Must include extension. EX. 'clientside/image.jpg' */
+    set MainBackgroundImage(value: string) {
+        this._backgroundImage = value;
+    }
+
+    get MainBackgroundImage(): string {
+        return this._backgroundImage;
+    }
+
+    /** Sets the color for RGB of R type. Max of 255 */
+    set MainColorR(value: number) {
+        this._r = value;
+    }
+
+    /** Gets the color for RGB of R type. */
+    get MainColorR(): number {
+        return this._r;
+    }
+
+    /** Sets the color for RGB of G type. Max of 255 */
+    set MainColorG(value: number) {
+        this._g = value;
+    }
+
+    /** Gets the color for RGB of G type. */
+    get MainColorG(): number {
+        return this._g;
+    }
+
+    /** Sets the color for RGB of B type. Max of 255 */
+    set MainColorB(value: number) {
+        this._b = value;
+    }
+
+    /** Gets the color for RGB of B type. */
+    get MainColorB(): number {
+        return this._b;
+    }
+
+    /** Sets RGB Color of Main */
+    public MainBackgroundColor(r: number, g: number, b: number, alpha: number) {
+        this._r = r;
+        this._g = g;
+        this._b = b;
+        this._alpha = alpha;
+    }
+
+    /** Sets the RGB Color of Hover */
+    public HoverBackgroundColor(r: number, g: number, b: number, alpha: number) {
+        this._hoverR = r;
+        this._hoverG = g;
+        this._hoverB = b;
+        this._hoverAlpha = alpha;
+    }
+
+    /** Is there a hover state? */
+    set Hoverable(value: boolean) {
+        this._hoverable = value;
+    }
+
+    get Hoverable(): boolean {
+        return this._hoverable;
+    }
+
+    /** Sets the hover alpha */
+    set HoverAlpha(value: number) {
+        this._hoverAlpha = value;
+    }
+
+    get HoverAlpha(): number {
+        return this._hoverAlpha;
+    }
+
+    /** Sets the hover color for RGB of R type. */
+    set HoverR(value: number) {
+        this._hoverR = value;
+    }
+
+    get HoverR(): number {
+        return this._hoverR;
+    }
+
+    /** Sets the hover color for RGB of G type. */
+    set HoverG(value: number) {
+        this._hoverG = value;
+    }
+
+    get HoverG(): number {
+        return this._hoverG;
+    }
+
+    /** Sets the hover color for RGB of B type. */
+    set HoverB(value: number) {
+        this._hoverB = value;
+    }
+
+    get HoverB(): number {
+        return this._hoverB;
+    }
+
+    /** Sets the font Outline property */
+    set FontOutline(value: boolean) {
+        this._outline = value;
+    }
+
+    get FontOutline(): boolean {
+        return this._outline;
+    }
+
+    /** Sets the font Shadow property */
+    set FontShadow(value: boolean) {
+        this._shadow = value;
+    }
+
+    get FontShadow(): boolean {
+        return this._shadow;
+    }
+
+    /** Sets the Tooltip text for your element. */
+    set Tooltip(value: string) {
+        this._tooltip = value;
+    }
+
+    get Tooltip(): string {
+        return this._tooltip;
+    }
+
+    /** Adds a stylized line under your your box. */
+    set Header(value: boolean) {
+        this._header = value;
+    }
+
+    get Header(): boolean {
+        return this._header;
+    }
+
+    /** If your text needs to be pushed in a certain direction either add or remove pixels here. */
+    set Offset(value: number) {
         this._offset = value;
     }
 
+    get Offset(): number {
+        return this._offset;
+    }
+
+    addText(value: string) {
+        let textElement: TextElement = new TextElement(value, this._xPos, this._yPos, this._width, this._height, this._line);
+        this._textLines.push(textElement);
+        this._line += 1;
+        return textElement;
+    }
+
+    /**
+     *
+     * @param x - Start position of X inside the panel.
+     * @param y - Start Position of Y inside the panel.
+     * @param width - How wide. Generally the width of your panel.
+     * @param height - How tall. 1 or 2 is pretty normal.
+     */
+    addInput(x: number, y: number, width: number, height: number) {
+        let inputPanel: InputPanel = new InputPanel(this._page, (x * panelMinX) + this._xPos, (y * panelMinY) + this._yPos, width, height);
+        this._inputPanels.push(inputPanel);
+        return inputPanel;
+    }
+
+    // Hover Action
+    isHovered() {
+        if (!API.isCursorShown()) {
+            return;
+        }
+
+        if (!this._hoverable) {
+            return;
+        }
+
+        let cursorPos = API.getCursorPositionMantainRatio();
+        if (cursorPos.X > this._xPos && cursorPos.X < (this._xPos + this._width) && cursorPos.Y > this._yPos && cursorPos.Y < this._yPos + this._height) {
+            if (!this._hovered) {
+                this._hovered = true;
+                this.setTextHoverState(true);
+                if (this._hoverAudio) {
+                    API.playSoundFrontEnd(this._hoverAudioLib, this._hoverAudioName);
+                }
+            }
+            
+            this._hoverTime += 1;
+
+            if (this._hoverTime > 50) {
+                if (this._tooltip === null) {
+                    return;
+                }
+
+                if (this._tooltip.length > 1) {
+                    API.drawText(this._tooltip, cursorPos.X + 25, cursorPos.Y, 0.4, 255, 255, 255, 255, 4, 0, true, true, 200);
+                }
+            }
+            return;
+        }
+
+        this._hovered = false;
+        this._hoverTime = 0;
+        this.setTextHoverState(false);
+    }
+
+    // Click Action
+    isClicked() {
+        // Is there even a cursor?
+        if (!API.isCursorShown()) {
+            return;
+        }
+
+        // Is there a function if they click it?
+        if (this._function === null) {
+            return;
+        }
+
+        // Are they even left clicking?
+        if (API.isControlJustPressed(Enums.Controls.CursorAccept)) {
+            let cursorPos = API.getCursorPositionMantainRatio();
+            if (cursorPos.X > this._xPos && cursorPos.X < (this._xPos + this._width) && cursorPos.Y > this._yPos && cursorPos.Y < this._yPos + this._height) {
+                if (new Date().getTime() < clickDelay + 200) {
+                    return;
+                }
+
+                clickDelay = new Date().getTime();
+
+                if (this._functionClickAudio) {
+                    API.playSoundFrontEnd(this._functionAudioLib, this._functionAudioName);
+                }
+
+                this._function();
+                return;
+            }
+        }
+    }
+
+    setTextHoverState(value: boolean) {
+        for (var i = 0; i < this._textLines.length; i++) {
+            this._textLines[i].Hovered = value;
+        }
+    }
+
+    // Type
     returnType() {
         return "Panel";
     }
 }
 
 class InputPanel {
-    _xPos: number;
-    _yPos: number;
-    _width: number;
-    _height: number;
-    _input: string;
-    _protected: boolean;
-    _hovered: boolean;
-    _selected: boolean;
-    _numeric: boolean;
-    _isError: boolean;
-    _isTransparent: boolean;
+    private _xPos: number;
+    private _yPos: number;
+    private _width: number;
+    private _height: number;
+    private _input: string;
+    private _protected: boolean;
+    private _hovered: boolean;
+    private _selected: boolean;
+    private _numeric: boolean;
+    private _isError: boolean;
+    private _isTransparent: boolean;
+    private _r: number;
+    private _g: number;
+    private _b: number;
+    private _alpha: number;
+    private _hoverR: number;
+    private _hoverG: number;
+    private _hoverB: number;
+    private _hoverAlpha: number;
+    private _selectR: number;
+    private _selectG: number;
+    private _selectB: number;
+    private _selectAlpha: number;
+    private _inputAudioLib: string;
+    private _inputAudioName: string;
+    private _page: number;
+    private _tabIndex: number;
 
-    constructor(x, y, width, height, isPasswordProtected, isSelected) {
-        this._xPos = x * panelMinX;
-        this._yPos = y * panelMinY;
+    constructor(page, x, y, width, height) {
+        this._xPos = x;
+        this._yPos = y;
         this._width = width * panelMinX;
         this._height = height * panelMinY;
-        this._protected = isPasswordProtected;
+        this._protected = false;
         this._input = "";
         this._hovered = false;
-        this._selected = isSelected;
+        this._selected = false;
         this._numeric = false;
         this._isError = false;
         this._isTransparent = false;
+        this._r = 255;
+        this._g = 255;
+        this._b = 255;
+        this._alpha = 100;
+        this._hoverR = 255;
+        this._hoverG = 255;
+        this._hoverB = 255;
+        this._hoverAlpha = 125;
+        this._selectR = 255;
+        this._selectG = 255;
+        this._selectB = 255;
+        this._selectAlpha = 125;
+        this._inputAudioLib = "Click";
+        this._inputAudioName = "DLC_HEIST_HACKING_SNAKE_SOUNDS";
+        this._page = page;
+        tabIndex.push(this);
     }
-
-    draw() {
-        if (this._selected) {
-            if (!this._isTransparent) {
-                API.drawRectangle(this._xPos, this._yPos, this._width, this._height, 0, 0, 0, 225); // Darker Black
-            }
-            API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, 255, 255, 255, 200);
-            if (this._protected) {
-                if (this._input.length < 1) {
-                    return;
-                }
-                API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
-            } else {
-                API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
-            }
-            
-            return;
-        }
-
-        if (this._hovered) { // Hovered
-            if (!this._isTransparent) {
-                API.drawRectangle(this._xPos, this._yPos, this._width, this._height, 0, 0, 0, 225); // Darker Black
-            }
-            if (this._isError) {
-                API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, 255, 0, 0, 100);
-            } else {
-                API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, 255, 255, 255, 150);
-            }
-            
-            if (this._protected) {
-                if (this._input.length < 1) {
-                    return;
-                }
-                API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
-            } else {
-                API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
-            }
-            //API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.5, this.r, this.g, this.b, 255, 4, 1, false, false, (panelMinX * this.Width));
-        } else { // Not Hovered
-            if (!this._isTransparent) {
-                API.drawRectangle(this._xPos, this._yPos, this._width, this._height, 0, 0, 0, 225); // Darker Black
-            }
-            if (this._isError) {
-                API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, 255, 0, 0, 100);
-            } else {
-                API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, 255, 255, 255, 100);
-            }
-            if (this._protected) {
-                if (this._input.length < 1) {
-                    return;
-                }
-                API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
-            } else {
-                API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
-            }
-            //API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.5, this.r, this.g, this.b, 50, 4, 1, false, false, (panelMinX * this.Width));
-        }
-    }
-
-    isHovered() {
-        if (API.isCursorShown()) {
-            let cursorPos = API.getCursorPositionMantainRatio();
-            if (cursorPos.X > this._xPos && cursorPos.X < (this._xPos + this._width) && cursorPos.Y > this._yPos && cursorPos.Y < (this._yPos + this._height)) {
-                this._hovered = true;
-            } else {
-                this._hovered = false;
-            }
-        }
-    }
-
-    isError(value) {
+    /** Sets whether or not there is an error. */
+    set isError(value: boolean) {
         this._isError = value;
     }
 
-    setSelected() {
-        selectedInput = this;
-        this._selected = true;
+    /** Sets whether or not this input is selected. */
+    set Selected(value: boolean) {
+        this._selected = value;
+        if (value) {
+            selectedInput = this;
+        } else {
+            selectedInput = null;
+        }
     }
 
-    setUnselected() {
-        this._selected = false;
+    get Selected(): boolean {
+        return this._selected;
     }
 
-    setTransparent() {
-        this._isTransparent = true;
+    // Hover BACKGROUND PARAMETERS
+    /** Set R of RGB on hover background. */
+    set HoverR(value: number) {
+        this._hoverR = value;
     }
 
-    isClicked() {
+    get HoverR(): number {
+        return this._hoverR;
+    }
+    /** Set G of RGB on hover background. */
+    set HoverG(value: number) {
+        this._hoverG = value;
+    }
+
+    get HoverG(): number {
+        return this._hoverG;
+    }
+    /** Set B of RGB on hover background. */
+    set HoverB(value: number) {
+        this._hoverB = value;
+    }
+
+    get HoverB(): number {
+        return this._hoverB;
+    }
+    /** Set Alpha of RGB on hover background. */
+    set HoverAlpha(value: number) {
+        this._hoverAlpha = value;
+    }
+    get HoverAlpha(): number {
+        return this._hoverAlpha;
+    }
+    // Main BACKGROUND PARAMETERS
+    public MainBackgroundColor(r: number, g: number, b: number, alpha: number) {
+        this._r = r;
+        this._g = g;
+        this._b = b;
+        this._alpha = alpha;
+    }
+
+    public HoverBackgroundColor(r: number, g: number, b: number, alpha: number) {
+        this._hoverR = r;
+        this._hoverG = g;
+        this._hoverB = b;
+        this._hoverAlpha = alpha;
+    }
+
+    public SelectBackgroundColor(r: number, g: number, b: number, alpha: number) {
+        this._selectR = r;
+        this._selectG = g;
+        this._selectB = b;
+        this._selectAlpha = alpha;
+    }
+
+    /** Set R of RGB on main background. */
+    set R(value: number) {
+        this._r = value;
+    }
+
+    get R(): number {
+        return this._r;
+    }
+    /** Set G of RGB on main background. */
+    set G(value: number) {
+        this._g = value;
+    }
+
+    get G(): number {
+        return this._g;
+    }
+    /** Set B of RGB on main background. */
+    set B(value: number) {
+        this._b = value;
+    }
+
+    get B(): number {
+        return this._b;
+    }
+    /** Set Alpha of RGB on main background. */
+    set Alpha(value: number) {
+        this._alpha = value;
+    }
+    get Alpha(): number {
+        return this._alpha;
+    }
+    // SELECTION BACKGROUND PARAMETERS
+    /** Set R of RGB on main background. */
+    set SelectR(value: number) {
+        this._selectR = value;
+    }
+
+    get SelectR(): number {
+        return this._selectR;
+    }
+    /** Set G of RGB on main background. */
+    set SelectG(value: number) {
+        this._selectG = value;
+    }
+
+    get SelectG(): number {
+        return this._selectG;
+    }
+    /** Set B of RGB on main background. */
+    set SelectB(value: number) {
+        this._selectB = value;
+    }
+
+    get SelectB(): number {
+        return this._selectB;
+    }
+    /** Set Alpha of RGB on main background. */
+    set SelectAlpha(value: number) {
+        this._selectAlpha = value;
+    }
+    get SelectAlpha(): number {
+        return this._selectAlpha;
+    }
+    /** Sets the input text. */
+    set Input(value: string) {
+        this._input = value;
+    }
+
+    /** Returns whatever the current input is. */
+    get Input(): string {
+        return this._input;
+    }
+
+    /** Removes the last character from the input. */
+    removeFromInput() {
+        this._input = this._input.substring(0, this._input.length - 1);
+    }
+
+    /** Set whether the input should be numeric only. */
+    set NumericOnly(value: boolean) {
+        this._numeric = value;
+    }
+
+    get NumericOnly(): boolean {
+        return this._numeric;
+    }
+    // Draw what we need to draw.
+    draw() {
+        if (this._selected) {
+            this.selectedDraw();
+        }
+
+        if (this._hovered) {
+            this.hoveredDraw();
+        }
+
+        if (!this._hovered && !this._selected) {
+            this.normalDraw();
+        }
+
+        this.isHovered();
+        this.isClicked();
+    }
+
+    private normalDraw() {
+        if (this._isError) {
+            API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, 255, 0, 0, 100);
+        } else {
+            API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, this._r, this._g, this._b, this._alpha);
+        }
+        if (this._protected) {
+            if (this._input.length < 1) {
+                return;
+            }
+            API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+        } else {
+            API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+        }
+    }
+
+    private selectedDraw() {
+        API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, this._selectR, this._selectG, this._selectB, this._selectAlpha);
+        if (this._protected) {
+            if (this._input.length < 1) {
+                return;
+            }
+            API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+        } else {
+            API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+        }
+        return;
+    }
+
+    private hoveredDraw() {
+        if (this._isError) {
+            API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, 255, 0, 0, 100);
+        } else {
+            API.drawRectangle(this._xPos + 10, this._yPos + 10, this._width - 20, this._height - 20, this._hoverR, this._hoverG, this._hoverB, this._hoverAlpha);
+        }
+
+        if (this._protected) {
+            if (this._input.length < 1) {
+                return;
+            }
+            API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+        } else {
+            API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+        }
+    }
+
+    private isHovered() {
+        if (!API.isCursorShown()) {
+            return;
+        }
+
         let cursorPos = API.getCursorPositionMantainRatio();
         if (cursorPos.X > this._xPos && cursorPos.X < (this._xPos + this._width) && cursorPos.Y > this._yPos && cursorPos.Y < (this._yPos + this._height)) {
-            this._selected = true;
-            selectedInput = this;
-            return;
+            if (this._selected) {
+                this._hovered = false;
+                return;
+            }
+            this._hovered = true;
         } else {
-            this._selected = false;
-            return;
+            this._hovered = false;
+        }
+    }
+
+    private isClicked() {
+        if (API.isControlJustPressed(Enums.Controls.CursorAccept)) {
+            if (new Date().getTime() < clickDelay + 200) {
+                return;
+            }
+            let cursorPos = API.getCursorPositionMantainRatio();
+            if (cursorPos.X > this._xPos && cursorPos.X < (this._xPos + this._width) && cursorPos.Y > this._yPos && cursorPos.Y < (this._yPos + this._height)) {
+                if (!this._selected) {
+                    API.playSoundFrontEnd(this._inputAudioLib, this._inputAudioName);
+                    this._selected = true;
+                }
+                selectedInput = this;
+            } else {
+                this._selected = false;
+            }
         }
     }
 
@@ -566,164 +1449,85 @@ class InputPanel {
         }
     }
 
-    setInput(value) {
-        this._input = value;
-    }
-
-    removeFromInput() {
-        this._input = this._input.substring(0, this._input.length - 1);
-    }
-
-    returnInput() {
-        return this._input;
-    }
-
-    setNumericOnly() {
-        this._numeric = true;
-    }
-
     returnType() {
         return "InputPanel";
     }
 }
 
-class Button {
-    xPos: number;
-    yPos: number;
-    Width: number;
-    Height: number;
-    text: string;
-    hovered: boolean;
-    thisFunction: any;
-    type: number; // 0 - Regular / 1 - Success(Green) / 2 - Danger(Orange) / 3 - Alert(Red)
-    r: number;
-    g: number;
-    b: number;
-    _args: any;
-    _tooltip: string;
-    _hoverTime: number;
-
-    constructor(x, y, width, height, type, t) {
-        this.xPos = x * panelMinX;
-        this.yPos = y * panelMinY;
-        this.Width = width * panelMinX;
-        this.Height = height * panelMinY;
-        this.text = t;
-        this.hovered = false;
-        this.type = type;
-        this._args = null;
-        this._hoverTime = 0;
-        this._tooltip = "";
-
-        switch (type) {
-            case 0: // Regular
-                this.r = 255;
-                this.g = 255;
-                this.b = 255;
-                return;
-            case 1: // Success
-                this.r = 0;
-                this.g = 255;
-                this.b = 0;
-                return;
-            case 2: // Danger
-                this.r = 255;
-                this.g = 165;
-                this.b = 0;
-                return;
-            case 3: // Alert
-                this.r = 255;
-                this.g = 0;
-                this.b = 0;
-                return;
-        }
+function drawTextNotification() {
+    if (textnotification !== null) {
+        textnotification.draw();
+        return;
     }
 
-    function(obj) {
-        this.thisFunction = obj;
+    if (textnotifications.length <= 0) {
+        return;
     }
 
-    addArgs(args) {
-        this._args = args;
-    }
-
-    setTooltip(value) {
-        this._tooltip = value;
-    }
-
-    draw() {
-        if (this.hovered) { // Hovered
-            API.drawRectangle(this.xPos, this.yPos, this.Width, this.Height, 0, 0, 0, 200); // Lighter
-            API.drawRectangle(this.xPos, this.yPos + this.Height - 5, this.Width, 5, this.r, this.g, this.b, 200);
-            API.drawText(this.text, this.xPos + (this.Width / 2), this.yPos + (this.Height / 2) - 14, 0.5, this.r, this.g, this.b, 255, 4, 1, false, false, (panelMinX * this.Width));
-        } else { // Not Hovered
-            API.drawRectangle(this.xPos, this.yPos, this.Width, this.Height, 0, 0, 0, 225); // Black
-            API.drawRectangle(this.xPos, this.yPos + this.Height - 5, this.Width, 5, this.r, this.g, this.b, 50);
-            API.drawText(this.text, this.xPos + (this.Width / 2), this.yPos + (this.Height / 2) - 14, 0.5, this.r, this.g, this.b, 255, 4, 1, false, false, (panelMinX * this.Width));
-        }
-    }
-
-    isHovered() {
-        if (API.isCursorShown()) {
-            let cursorPos = API.getCursorPositionMantainRatio();
-            if (cursorPos.X > this.xPos && cursorPos.X < (this.xPos + this.Width) && cursorPos.Y > this.yPos && cursorPos.Y < this.yPos + this.Height) {
-                this.hovered = true;
-                this._hoverTime += 1;
-
-                if (this._hoverTime > 50) {
-                    API.drawText(this._tooltip, cursorPos.X + 25, cursorPos.Y, 0.4, 255, 255, 255, 255, 4, 0, true, true, 200);
-                }
-            } else {
-                this.hovered = false;
-                this._hoverTime = 0;
-            }
-        }
-    }
-
-    isClicked() {
-        if (!API.isCursorShown()) {
-            return;
-        }
-
-        let cursorPos = API.getCursorPositionMantainRatio();
-        if (cursorPos.X > this.xPos && cursorPos.X < (this.xPos + this.Width) && cursorPos.Y > this.yPos && cursorPos.Y < this.yPos + this.Height) {
-            API.playSoundFrontEnd("Click", "DLC_HEIST_HACKING_SNAKE_SOUNDS");
-            if (this.thisFunction !== null) {
-                this.thisFunction(this._args);
-            }
-        }
-    }
-
-    returnType() {
-        return "Button";
-    }
+    textnotification = textnotifications.shift();
+    return;
 }
 
-// On-Update Event -- Draws all of our stuff.
-API.onUpdate.connect(function () {
-    // Notifications can be global.
-    drawNotification();
-    drawTextNotification();
-
-    if (!menuIsReady) {
+function drawNotification() {
+    if (notification !== null) {
+        notification.draw();
         return;
     }
 
-    if (menuElements.length === 0) {
+    if (notifications.length <= 0) {
         return;
     }
 
-    if (menuElements[currentPage].length === 0) {
-        return;
-    }
+    notification = notifications.shift();
+    return;
+}
 
-    drawAllMenuElements();
-});
+function createNotification(page: number, text: string, displayTime: number) {
+    // Add to queue.
+    let notify = new Notification(text, displayTime);
+    notifications.push(notify);
+    return notify;
+}
+function createPlayerTextNotification(text: string) {
+    let notify = new PlayerTextNotification(text);
+    textnotifications.push(notify);
+    return notify;
+}
+function createProgressBar(page: number, x: number, y: number, width: number, height: number, currentProgress: number) {
+    let bar = new ProgressBar(x, y, width, height, currentProgress);
+    menuElements[page].push(bar);
+    return bar;
+}
+
+function killMenu() {
+    isReady = false;
+    selectedInput = null;
+    API.showCursor(false);
+    API.setHudVisible(true);
+    API.setChatVisible(true);
+    API.setCanOpenChat(true);
+    API.callNative("_TRANSITION_FROM_BLURRED", 3000);
+    menuElements = [[]];
+    currentPage = 0;
+}
 
 // On-Keydown Event
 API.onKeyDown.connect(function (sender, e) {
-    if (!menuIsReady) {
+    if (!isReady) {
         return;
+    }
+
+    // Shift between Input Boxes.
+    if (e.KeyCode == Keys.Tab) {
+        if (tabIndex[0].Selected) {
+            tabIndex[0].Selected = false;
+        } else {
+            tabIndex[0].Selected = true;
+            return;
+        }
+        let removeItem = tabIndex.shift();
+        tabIndex.push(removeItem);
+        tabIndex[0].Selected = true;
     }
 
     if (selectedInput === null) {
@@ -1046,221 +1850,11 @@ API.onKeyDown.connect(function (sender, e) {
     }
 
     if (keypress.length > 0) {
+        if (selectedInput === null) {
+            return;
+        }
         selectedInput.addToInput(keypress);
     } else {
         return;
     }
 });
-// Goes to Next Page
-function nextPage() {
-    if (currentPage + 1 > menuElements.length - 1) {
-        currentPage = 0;
-    } else {
-        currentPage += 1;
-    }
-}
-// Goes to Previous Page
-function prevPage() {
-    if (currentPage - 1 < 0) {
-        currentPage = menuElements.length - 1;
-    } else {
-        currentPage -= 1;
-    }
-}
-// Set Page
-function setPage(value) {
-    currentPage = value;
-}
-function drawTextNotification() {
-    if (textnotification !== null) {
-        textnotification.draw();
-        return;
-    }
-
-    if (textnotifications.length <= 0) {
-        return;
-    }
-
-    textnotification = textnotifications.shift();
-    return;
-}
-function drawNotification() {
-    if (notification !== null) {
-        notification.draw();
-        return;
-    }
-
-    if (notifications.length <= 0) {
-        return;
-    }
-
-    notification = notifications.shift();
-    return;
-}
-// Draws all elements.
-function drawAllMenuElements() {
-    if (!menuIsReady) {
-        return;
-    }
-
-    if (Array.isArray(menuElements[currentPage])) {
-        for (var i = 0; i < menuElements[currentPage].length; i++) {
-            // This will draw each element.
-            menuElements[currentPage][i].draw();
-            // Return the type of element.
-            let type = menuElements[currentPage][i].returnType();
-            // Check for Hover Events
-            switch (type) {
-                case "Button":
-                    menuElements[currentPage][i].isHovered();
-                    // Check for Click Events
-                    if (API.isControlJustPressed(Enums.Controls.CursorAccept)) {
-                        menuElements[currentPage][i].isClicked();
-                    }
-                    break;
-                case "InputPanel":
-                    menuElements[currentPage][i].isHovered();
-                    // Check for Click Events
-                    if (API.isControlJustPressed(Enums.Controls.CursorAccept)) {
-                        menuElements[currentPage][i].isClicked();
-                    }
-                    break;
-            }
-        }
-    }
-}
-
-// Ready to draw the menu?
-function setMenuReady(isReady: boolean) {
-    menuIsReady = isReady;
-}
-// Setup our pages with arrays. This is the first thing we should call.
-function setupMenu(numberOfPages: number) {
-    for (var i = 0; i < numberOfPages; i++) {
-        let emptyArray = [];
-        menuElements.push(emptyArray);
-    }
-}
-// Add a page to our pages array.
-function createPanel(page: number, xStart: number, yStart: number, xGridWidth: number, yGridHeight: number, isHeaderType: boolean, text: string) {
-    panel = new Panel(xStart, yStart, xGridWidth, yGridHeight, isHeaderType, text);
-    menuElements[page].push(panel);
-    return panel;
-}
-// Add a button to our pages array.
-function createButton(page: number, xStart: number, yStart: number, xGridWidth: number, yGridHeight: number, type: number, text: any) {
-    button = new Button(xStart, yStart, xGridWidth, yGridHeight, type, text);
-    menuElements[page].push(button);
-    return button;
-}
-// Add a static input to our pages array.
-function createInput(page: number, xStart: number, yStart: number, xGridWidth: number, yGridHeight: number, isPasswordProtected: boolean, isSelected: boolean) {
-    panel = new InputPanel(xStart, yStart, xGridWidth, yGridHeight, isPasswordProtected, isSelected);
-    menuElements[page].push(panel);
-    return panel;
-}
-function createImage(page: number, path: string, x: number, y: number, width: number, height: number) {
-    panel = new PanelImage(path, x, y, width, height);
-    menuElements[page].push(panel);
-    return panel;
-}
-function createNotification(page: number, text: string, displayTime: number) {
-    // Add to queue.
-    let notify = new Notification(text, displayTime);
-    notifications.push(notify);
-    return notify;
-}
-function createPlayerTextNotification(text: string) {
-    let notify = new PlayerTextNotification(text);
-    textnotifications.push(notify);
-    return notify;
-}
-function createProgressBar(page: number, x: number, y: number, width: number, height: number, currentProgress: number) {
-    let bar = new ProgressBar(x, y, width, height, currentProgress);
-    menuElements[page].push(bar);
-    return bar;
-}   
-function getCurrentPage() {
-    return currentPage;
-}
-// Clears the menu entirely.
-function exitMenu(cursor: boolean, hud: boolean, chat: boolean, blur: boolean, canOpenChat: boolean) {
-    menuIsReady = false;
-    
-    if (cursor) {
-        API.showCursor(true);
-    } else {
-        API.showCursor(false);
-    }
-
-    if (hud) {
-        API.setHudVisible(true);
-    } else {
-        API.setHudVisible(false);
-    }
-    
-    if (chat) {
-        API.setChatVisible(true);
-    } else {
-        API.setChatVisible(false);
-    }
-
-    if (blur) {
-        API.callNative("_TRANSITION_FROM_BLURRED", 3000);
-    }
-
-    if (canOpenChat) {
-        API.setCanOpenChat(true);
-    } else {
-        API.setCanOpenChat(false);
-    }
-
-    menuElements = [[]];
-    selectedInput = null;
-    currentPage = 0;
-}
-
-function killMenu() {
-    menuIsReady = false;
-    selectedInput = null;
-    API.showCursor(false);
-    API.setHudVisible(true);
-    API.setChatVisible(true);
-    API.setCanOpenChat(true);
-    API.callNative("_TRANSITION_FROM_BLURRED", 3000);
-    menuElements = [[]];
-    currentPage = 0;
-}
-
-function openMenu(cursor: boolean, hud: boolean, chat: boolean, blur: boolean, canOpenChat: boolean) {
-    if (blur === true) {
-        API.callNative("_TRANSITION_TO_BLURRED", 3000);
-    }
-
-    currentPage = 0;
-    menuIsReady = true;
-
-    if (cursor) {
-        API.showCursor(true);
-    } else {
-        API.showCursor(false);
-    }
-
-    if (hud) {
-        API.setHudVisible(true);
-    } else {
-        API.setHudVisible(false);
-    }
-
-    if (chat) {
-        API.setChatVisible(true);
-    } else {
-        API.setChatVisible(false);
-    }
-
-    if (canOpenChat) {
-        API.setCanOpenChat(true);
-    } else {
-        API.setCanOpenChat(false);
-    }
-}
