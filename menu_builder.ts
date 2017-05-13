@@ -113,6 +113,7 @@ class Menu {
             API.setHudVisible(false);
             API.setChatVisible(false);
             API.setCanOpenChat(false);
+
         } else {
             API.setHudVisible(true);
             API.setChatVisible(true);
@@ -626,6 +627,13 @@ class TextElement {
         return this._centered;
     }
 
+    /**
+     *  Set Offset
+     */
+    set Offset(value: number) {
+        this._offset = value;
+    }
+
     private drawAsCenteredAll() {
         if (this._hovered) {
             API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 20, this._fontScale, this._hoverTextR, this._hoverTextG, this._hoverTextB, this._hoverTextAlpha, this._font, 1, this._shadow, this._outline, this._width);
@@ -747,7 +755,9 @@ class Panel {
         if (this._page !== currentPage) {
             return;
         }
+
         this.drawRectangles();
+        
         // Only used if using text lines.
         if (this._textLines.length > 0) {
             for (var i = 0; i < this._textLines.length; i++) {
@@ -796,12 +806,8 @@ class Panel {
     }
 
     /** Add an array or a single value as a function. IMPORTANT! Any function you write must be able to take an array of arguments. */
-    public addFunctionArgs(value: any) {
-        if (Array.isArray(value)) {
-            this._functionArgs = value;
-        } else {
-            this._functionArgs.push(value);
-        }
+    public addFunctionArgs(value: any[]) {
+        this._functionArgs = value;
     }
     // HOVER AUDIO
     /** Sets the hover audio library. Ex: "Cycle_Item" */
@@ -1099,7 +1105,12 @@ class Panel {
                     API.playSoundFrontEnd(this._functionAudioLib, this._functionAudioName);
                 }
 
-                this._function();
+                if (this._functionArgs !== null || this._functionArgs.length > 1) {
+                    this._function(this._functionArgs);
+                } else {
+                    this._function();
+                }
+                
                 return;
             }
         }
@@ -1334,6 +1345,13 @@ class InputPanel {
     get NumericOnly(): boolean {
         return this._numeric;
     }
+
+    /**
+     *  Sets whether the input should be protected or not. */
+    set Protected(value: boolean) {
+        this._protected = value;
+    }
+
     // Draw what we need to draw.
     draw() {
         if (this._selected) {
