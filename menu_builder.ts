@@ -20,6 +20,9 @@ var isReady = false;
 var currentPage = 0;
 var clickDelay = new Date().getTime();
 
+// Current Menu
+var menu: Menu = null;
+
 // On-Update Event -- Draws all of our stuff.
 API.onUpdate.connect(function () {
     // Notifications can be global.
@@ -30,33 +33,14 @@ API.onUpdate.connect(function () {
         return;
     }
 
-    if (menuElements.length < 1) {
-        return;
-    }
-
-    if (currentPage === null) {
-        return;
-    }
-
-    if (!Array.isArray(menuElements[currentPage])) {
-        return;
-    }
-
-    if (menuElements[currentPage].length < 1) {
-        return;
-    }
-
     for (var i = 0; i < menuElements[currentPage].length; i++) {
+        if (!isReady) {
+            break;
+        }
         menuElements[currentPage][i].draw();
         menuElements[currentPage][i].isHovered();
         menuElements[currentPage][i].isClicked();
     }
-
-    // 0 - 1
-    // Page - Page
-    // Panel - Panel
-    // Panel - Panel
-    // Panel - Panel
 });
 
 /**
@@ -64,7 +48,14 @@ API.onUpdate.connect(function () {
  * @param pages - Number of pages.
  */
 function createMenu(pages: number) {
-    let menu = new Menu(pages);
+    if (menu !== null) {
+        isReady = false;
+        currentPage = 0;
+        selectedInput = null;
+        tabIndex = [];
+        menuElements = [];
+    }
+    menu = new Menu(pages);
     return menu;
 }
 
@@ -87,6 +78,7 @@ class Menu {
     /** Start drawing our menu. */
     set Ready(value: boolean) {
         isReady = value;
+        currentPage = 0;
     }
 
     get Ready(): boolean {
@@ -139,7 +131,12 @@ class Menu {
      *  Delete any open menu instances.
      */
     public killMenu() {
-        killMenu();
+        isReady = false;
+        API.showCursor(false);
+        API.setHudVisible(true);
+        API.setChatVisible(true);
+        API.setCanOpenChat(true);
+        API.callNative("_TRANSITION_FROM_BLURRED", 3000);
     }
 
     public nextPage() {
@@ -240,14 +237,16 @@ class PlayerTextNotification {
 }
 
 class ProgressBar {
-    _xPos: number;
-    _yPos: number;
-    _width: number;
-    _height: number;
-    _r: number;
-    _g: number;
-    _b: number;
-    _currentProgress: number;
+    private _xPos: number;
+    private _yPos: number;
+    private _width: number;
+    private _height: number;
+    private _r: number;
+    private _g: number;
+    private _b: number;
+    private _alpha: number;
+    private _currentProgress: number;
+    private _drawText: boolean;
 
     constructor(x, y, width, height, currentProgress) {
         this._xPos = x * panelMinX;
@@ -258,21 +257,36 @@ class ProgressBar {
         this._r = 0;
         this._g = 0;
         this._b = 0;
+        this._alpha = 255;
+        this._drawText = true;
+        API.sendChatMessage("Created");
     }
 
     draw() {
-        
-        API.drawRectangle(this._xPos + 5, this._yPos + 5, ((this._width / 100) * this._currentProgress), this._height, this._r, this._g, this._b, 225);
-        API.drawText("" + Math.round(this._currentProgress), this._xPos + (((this._width / 100) * this._currentProgress) / 2), this._yPos, 0.5, 255, 255, 255, 255, 4, 1, false, true, 100);
+        API.drawRectangle(this._xPos + 5, this._yPos + 5, ((this._width / 100) * this._currentProgress), this._height, this._r, this._g, this._b, this._alpha);
+        if (this._drawText) {
+            API.drawText("" + Math.round(this._currentProgress), this._xPos + (((this._width / 100) * this._currentProgress) / 2), this._yPos, 0.5, 255, 255, 255, 255, 4, 1, false, true, 100);
+        }
     }
 
-    setColor(r, g, b) {
+    public setColor(r, g, b) {
         this._r = r;
         this._g = g;
         this._b = b;
     }
 
-    addProgress(value) {
+    /** The alpha property for the bar. */
+    set Alpha(value: number) {
+        this._alpha = value;
+    }
+
+    /** Draw any text? */
+    set DrawText(value: boolean) {
+        this._drawText = value;
+    }
+
+
+    public addProgress(value) {
         if (this._currentProgress + value > 100) {
             this._currentProgress = 100;
             return;
@@ -280,7 +294,7 @@ class ProgressBar {
         this._currentProgress += value; 
     }
 
-    subtractProgress(value) {
+    public subtractProgress(value) {
         if (this._currentProgress - value < 0) {
             this._currentProgress = 0;
             return;
@@ -288,7 +302,7 @@ class ProgressBar {
         this._currentProgress -= value;
     }
 
-    setProgressAmount(value) {
+    public setProgressAmount(value) {
         if (value >= 100) {
             this._currentProgress = 100;
             return;
@@ -303,7 +317,7 @@ class ProgressBar {
         return;
     }
 
-    returnProgressAmount() {
+    public returnProgressAmount() {
         return this._currentProgress;
     }
 
@@ -511,6 +525,11 @@ class TextElement {
         this.drawAsNormal();
     }
 
+    //** Sets the text */
+    set Text(value: string) {
+        this._text = value;
+    }
+
     //** Is this text element in a hover state? */
     set Hovered(value: boolean) {
         this._hovered = value;
@@ -707,6 +726,7 @@ class Panel {
     private _b: number;
     private _textLines: TextElement[];
     private _inputPanels: InputPanel[];
+    private _progressBars: ProgressBar[];
     private _currentLine: number;
     private _alpha: number;
     private _shadow: boolean;
@@ -753,6 +773,7 @@ class Panel {
         this._b = 0;
         this._textLines = [];
         this._inputPanels = [];
+        this._progressBars = [];
         this._currentLine = 0;
         this._shadow = false;
         this._outline = false;
@@ -785,7 +806,11 @@ class Panel {
         }
 
         this.drawRectangles();
-        
+
+        if (!isReady) {
+            return;
+        }
+
         // Only used if using text lines.
         if (this._textLines.length > 0) {
             for (var i = 0; i < this._textLines.length; i++) {
@@ -796,6 +821,13 @@ class Panel {
         if (this._inputPanels.length > 0) {
             for (var i = 0; i < this._inputPanels.length; i++) {
                 this._inputPanels[i].draw();
+            }
+        }
+
+        // Only used if using progress bars.
+        if (this._progressBars.length > 0) {
+            for (var i = 0; i < this._progressBars.length; i++) {
+                this._progressBars[i].draw();
             }
         }
     }
@@ -1048,6 +1080,10 @@ class Panel {
         return this._offset;
     }
 
+    /**
+     *  Used to add text elements to your panels.
+     * @param value
+     */
     addText(value: string) {
         let textElement: TextElement = new TextElement(value, this._xPos, this._yPos, this._width, this._height, this._line);
         this._textLines.push(textElement);
@@ -1066,6 +1102,21 @@ class Panel {
         let inputPanel: InputPanel = new InputPanel(this._page, (x * panelMinX) + this._xPos, (y * panelMinY) + this._yPos, width, height);
         this._inputPanels.push(inputPanel);
         return inputPanel;
+    }
+
+
+    /**
+     *
+     * @param x - Start position of X inside the panel.
+     * @param y - Start Position of Y inside the panel.
+     * @param width
+     * @param height
+     * @param currentProgress - 0 to 100
+     */
+    addProgressBar(x: number, y: number, width: number, height: number, currentProgress: number) {
+        let progressBar: ProgressBar = new ProgressBar((x * panelMinX) + this._xPos, (y * panelMinY) + this._yPos, width, height, currentProgress);
+        this._progressBars.push(progressBar);
+        return progressBar;
     }
 
     // Hover Action
@@ -1184,6 +1235,11 @@ class InputPanel {
     private _inputAudioName: string;
     private _page: number;
     private _tabIndex: number;
+    private _inputTextR: number;
+    private _inputTextG: number;
+    private _inputTextB: number;
+    private _inputTextAlpha: number;
+    private _inputTextScale: number;
 
     constructor(page, x, y, width, height) {
         this._xPos = x;
@@ -1208,10 +1264,15 @@ class InputPanel {
         this._selectR = 255;
         this._selectG = 255;
         this._selectB = 255;
+        this._inputTextR = 0;
+        this._inputTextG = 0;
+        this._inputTextB = 0;
+        this._inputTextAlpha = 255;
         this._selectAlpha = 125;
         this._inputAudioLib = "Click";
         this._inputAudioName = "DLC_HEIST_HACKING_SNAKE_SOUNDS";
         this._page = page;
+        this._inputTextScale = 0.45;
         tabIndex.push(this);
     }
     /** Sets whether or not there is an error. */
@@ -1350,6 +1411,59 @@ class InputPanel {
     get SelectAlpha(): number {
         return this._selectAlpha;
     }
+
+    /**
+     *  Sets the RGB Parameter for the INPUT Text;
+     * @param r
+     * @param g
+     * @param b
+     * @param alpha
+     */
+    public InputTextColor(r: number, g: number, b: number, alpha: number) {
+        this._inputTextR = r;
+        this._inputTextG = g;
+        this._inputTextB = b;
+        this._inputTextAlpha = alpha;
+    }
+
+    /** Set R of RGB on input text. */
+    set TextR(value: number) {
+        this._inputTextR = value;
+    }
+    get TextR(): number {
+        return this._inputTextR;
+    }
+    /** Set G of RGB on input text. */
+    set TextG(value: number) {
+        this._inputTextG = value;
+    }
+    get TextG(): number {
+        return this._inputTextG;
+    }
+    /** Set B of RGB on input text. */
+    set TextB(value: number) {
+        this._inputTextB = value;
+    }
+    get InputB(): number {
+        return this._inputTextB;
+    }
+    /** Set Alpha of RGB on input text. */
+    set InputAlpha(value: number) {
+        this._inputTextAlpha = value;
+    }
+    get InputAlpha(): number {
+        return this._inputTextAlpha;
+    }
+
+    /** Input Text Size */
+    set InputTextScale(value: number) {
+        this._inputTextScale = value;
+    }
+
+    get InputTextScale(): number {
+        return this._inputTextScale;
+    }
+
     /** Sets the input text. */
     set Input(value: string) {
         this._input = value;
@@ -1408,9 +1522,9 @@ class InputPanel {
             if (this._input.length < 1) {
                 return;
             }
-            API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+            API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, this._inputTextScale, this._inputTextR, this._inputTextG, this._inputTextB, this._inputTextAlpha, 4, 1, false, false, (panelMinX * this._width));
         } else {
-            API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+            API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, this._inputTextScale, this._inputTextR, this._inputTextG, this._inputTextB, this._inputTextAlpha, 4, 1, false, false, (panelMinX * this._width));
         }
     }
 
@@ -1420,9 +1534,9 @@ class InputPanel {
             if (this._input.length < 1) {
                 return;
             }
-            API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+            API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, this._inputTextScale, this._inputTextR, this._inputTextG, this._inputTextB, this._inputTextAlpha, 4, 1, false, false, (panelMinX * this._width));
         } else {
-            API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+            API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, this._inputTextScale, this._inputTextR, this._inputTextG, this._inputTextB, this._inputTextAlpha, 4, 1, false, false, (panelMinX * this._width));
         }
         return;
     }
@@ -1438,9 +1552,9 @@ class InputPanel {
             if (this._input.length < 1) {
                 return;
             }
-            API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+            API.drawText("*".repeat(this._input.length), this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, this._inputTextScale, this._inputTextR, this._inputTextG, this._inputTextB, this._inputTextAlpha, 4, 1, false, false, (panelMinX * this._width));
         } else {
-            API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, 0.4, 0, 0, 0, 255, 4, 1, false, false, (panelMinX * this._width));
+            API.drawText(this._input, this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 14, this._inputTextScale, this._inputTextR, this._inputTextG, this._inputTextB, this._inputTextAlpha, 4, 1, false, false, (panelMinX * this._width));
         }
     }
 
@@ -1539,11 +1653,6 @@ function createPlayerTextNotification(text: string) {
     textnotifications.push(notify);
     return notify;
 }
-function createProgressBar(page: number, x: number, y: number, width: number, height: number, currentProgress: number) {
-    let bar = new ProgressBar(x, y, width, height, currentProgress);
-    menuElements[page].push(bar);
-    return bar;
-}
 /**
  * Set the page number for whatever current menu is open.
  * @param value
@@ -1554,15 +1663,15 @@ function setPage(value: number) {
 
 function killMenu() {
     isReady = false;
+    currentPage = -1;
     selectedInput = null;
     tabIndex = [];
-    menuElements = [];
     API.showCursor(false);
     API.setHudVisible(true);
     API.setChatVisible(true);
     API.setCanOpenChat(true);
     API.callNative("_TRANSITION_FROM_BLURRED", 3000);
-    currentPage = 0;
+    menuElements = [];
 }
 
 // On-Keydown Event
