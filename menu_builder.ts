@@ -1,7 +1,9 @@
-﻿var screenX = API.getScreenResolutionMantainRatio().Width;
+/// <reference path="../../types-gtanetwork/index.d.ts" />
+
+var screenX = API.getScreenResolutionMantainRatio().Width;
 var screenY = API.getScreenResolutionMantainRatio().Height;
-var panelMinX = (screenX / 32);
-var panelMinY = (screenY / 18);
+var panelMinX = Math.round(screenX / 32);
+var panelMinY = Math.round(screenY / 18);
 var button = null;
 var panel = null;
 var image = null;
@@ -19,6 +21,7 @@ var menuElements = [];
 var isReady = false;
 var currentPage = 0;
 var clickDelay = new Date().getTime();
+var language = 0;
 
 // Current Menu
 var menu: Menu = null;
@@ -137,6 +140,10 @@ class Menu {
         API.setChatVisible(true);
         API.setCanOpenChat(true);
         API.callNative("_TRANSITION_FROM_BLURRED", 3000);
+    }
+
+    public setLanguage(value: number) {
+        language = value;
     }
 
     public nextPage() {
@@ -291,7 +298,7 @@ class ProgressBar {
             this._currentProgress = 100;
             return;
         }
-        this._currentProgress += value; 
+        this._currentProgress += value;
     }
 
     public subtractProgress(value) {
@@ -1138,7 +1145,7 @@ class Panel {
                     API.playSoundFrontEnd(this._hoverAudioLib, this._hoverAudioName);
                 }
             }
-            
+
             this._hoverTime += 1;
 
             if (this._hoverTime > 50) {
@@ -1189,7 +1196,7 @@ class Panel {
                 } else {
                     this._function();
                 }
-                
+
                 return;
             }
         }
@@ -1702,310 +1709,686 @@ API.onKeyDown.connect(function (sender, e) {
         return;
     }
 
+    let keypress = "";
+
     let shiftOn = false;
+    let altOn = false;
+
     if (e.Shift) {
         shiftOn = true;
+
     }
 
-    let keypress = "";
-    switch (e.KeyCode) {
-        case Keys.Space:
-            keypress = " ";
-            break;
-        case Keys.A:
-            keypress = "a";
-            if (shiftOn) {
-                keypress = "A";
-            }
-            break;
-        case Keys.B:
-            keypress = "b";
-            if (shiftOn) {
-                keypress = "B";
-            }
-            break;
-        case Keys.C:
-            keypress = "c";
-            if (shiftOn) {
-                keypress = "C";
-            }
-            break;
-        case Keys.D:
-            keypress = "d";
-            if (shiftOn) {
-                keypress = "D";
-            }
-            break;
-        case Keys.E:
-            keypress = "e";
-            if (shiftOn) {
-                keypress = "E";
-            }
-            break;
-        case Keys.F:
-            keypress = "f";
-            if (shiftOn) {
-                keypress = "F";
-            }
-            break;
-        case Keys.G:
-            keypress = "g";
-            if (shiftOn) {
-                keypress = "G";
-            }
-            break;
-        case Keys.H:
-            keypress = "h";
-            if (shiftOn) {
-                keypress = "H";
-            }
-            break;
-        case Keys.I:
-            keypress = "i";
-            if (shiftOn) {
-                keypress = "I";
-            }
-            break;
-        case Keys.J:
-            keypress = "j";
-            if (shiftOn) {
-                keypress = "J";
-            }
-            break;
-        case Keys.K:
-            keypress = "k";
-            if (shiftOn) {
-                keypress = "K";
-            }
-            break;
-        case Keys.L:
-            keypress = "l";
-            if (shiftOn) {
-                keypress = "L";
-            }
-            break;
-        case Keys.M:
-            keypress = "m";
-            if (shiftOn) {
-                keypress = "M";
-            }
-            break;
-        case Keys.N:
-            keypress = "n";
-            if (shiftOn) {
-                keypress = "N";
-            }
-            break;
-        case Keys.O:
-            keypress = "o";
-            if (shiftOn) {
-                keypress = "O";
-            }
-            break;
-        case Keys.P:
-            keypress = "p";
-            if (shiftOn) {
-                keypress = "P";
-            }
-            break;
-        case Keys.Q:
-            keypress = "q";
-            if (shiftOn) {
-                keypress = "Q";
-            }
-            break;
-        case Keys.R:
-            keypress = "r";
-            if (shiftOn) {
-                keypress = "R";
-            }
-            break;
-        case Keys.S:
-            keypress = "s";
-            if (shiftOn) {
-                keypress = "S";
-            }
-            break;
-        case Keys.T:
-            keypress = "t";
-            if (shiftOn) {
-                keypress = "T";
-            }
-            break;
-        case Keys.U:
-            keypress = "u";
-            if (shiftOn) {
-                keypress = "U";
-            }
-            break;
-        case Keys.V:
-            keypress = "v";
-            if (shiftOn) {
-                keypress = "V";
-            }
-            break;
-        case Keys.W:
-            keypress = "w";
-            if (shiftOn) {
-                keypress = "W";
-            }
-            break;
-        case Keys.X:
-            keypress = "x";
-            if (shiftOn) {
-                keypress = "X";
-            }
-            break;
-        case Keys.Y:
-            keypress = "y";
-            if (shiftOn) {
-                keypress = "Y";
-            }
-            break;
-        case Keys.Z:
-            keypress = "z";
-            if (shiftOn) {
-                keypress = "Z";
-            }
-            break;
-        case Keys.D0:
-            keypress = "0";
-            if (shiftOn) {
-                keypress = ")";
-            }
-            break;
-        case Keys.D1:
-            keypress = "1";
-            if (shiftOn) {
-                keypress = "!";
-            }
-            break;
-        case Keys.D2:
-            keypress = "2";
-            if (shiftOn) {
-                keypress = "@";
-            }
-            break;
-        case Keys.D3:
-            keypress = "3";
-            if (shiftOn) {
-                keypress = "#";
-            }
-            break;
-        case Keys.D4:
-            keypress = "4";
-            if (shiftOn) {
-                keypress = "$";
-            }
-            break;
-        case Keys.D5:
-            keypress = "5";
-            if (shiftOn) {
-                keypress = "%";
-            }
-            break;
-        case Keys.D6:
-            keypress = "6";
-            if (shiftOn) {
-                keypress = "^";
-            }
-            break;
-        case Keys.D7:
-            keypress = "7";
-            if (shiftOn) {
+    if (e.Alt) {
+        altOn = true;
+    }
+
+    if (languageValue == 0) {
+        switch (e.KeyCode) {
+            case Keys.Space:
+                keypress = " ";
+                break;
+            case Keys.A:
+                keypress = "a";
+                if (shiftOn) {
+                    keypress = "A";
+                }
+                break;
+            case Keys.B:
+                keypress = "b";
+                if (shiftOn) {
+                    keypress = "B";
+                }
+                break;
+            case Keys.C:
+                keypress = "c";
+                if (shiftOn) {
+                    keypress = "C";
+                }
+                break;
+            case Keys.D:
+                keypress = "d";
+                if (shiftOn) {
+                    keypress = "D";
+                }
+                break;
+            case Keys.E:
+                keypress = "e";
+                if (shiftOn) {
+                    keypress = "E";
+                }
+                break;
+            case Keys.F:
+                keypress = "f";
+                if (shiftOn) {
+                    keypress = "F";
+                }
+                break;
+            case Keys.G:
+                keypress = "g";
+                if (shiftOn) {
+                    keypress = "G";
+                }
+                break;
+            case Keys.H:
+                keypress = "h";
+                if (shiftOn) {
+                    keypress = "H";
+                }
+                break;
+            case Keys.I:
+                keypress = "i";
+                if (shiftOn) {
+                    keypress = "I";
+                }
+                break;
+            case Keys.J:
+                keypress = "j";
+                if (shiftOn) {
+                    keypress = "J";
+                }
+                break;
+            case Keys.K:
+                keypress = "k";
+                if (shiftOn) {
+                    keypress = "K";
+                }
+                break;
+            case Keys.L:
+                keypress = "l";
+                if (shiftOn) {
+                    keypress = "L";
+                }
+                break;
+            case Keys.M:
+                keypress = "m";
+                if (shiftOn) {
+                    keypress = "M";
+                }
+                break;
+            case Keys.N:
+                keypress = "n";
+                if (shiftOn) {
+                    keypress = "N";
+                }
+                break;
+            case Keys.O:
+                keypress = "o";
+                if (shiftOn) {
+                    keypress = "O";
+                }
+                break;
+            case Keys.P:
+                keypress = "p";
+                if (shiftOn) {
+                    keypress = "P";
+                }
+                break;
+            case Keys.Q:
+                keypress = "q";
+                if (shiftOn) {
+                    keypress = "Q";
+                }
+                break;
+            case Keys.R:
+                keypress = "r";
+                if (shiftOn) {
+                    keypress = "R";
+                }
+                break;
+            case Keys.S:
+                keypress = "s";
+                if (shiftOn) {
+                    keypress = "S";
+                }
+                break;
+            case Keys.T:
+                keypress = "t";
+                if (shiftOn) {
+                    keypress = "T";
+                }
+                break;
+            case Keys.U:
+                keypress = "u";
+                if (shiftOn) {
+                    keypress = "U";
+                }
+                break;
+            case Keys.V:
+                keypress = "v";
+                if (shiftOn) {
+                    keypress = "V";
+                }
+                break;
+            case Keys.W:
+                keypress = "w";
+                if (shiftOn) {
+                    keypress = "W";
+                }
+                break;
+            case Keys.X:
+                keypress = "x";
+                if (shiftOn) {
+                    keypress = "X";
+                }
+                break;
+            case Keys.Y:
+                keypress = "y";
+                if (shiftOn) {
+                    keypress = "Y";
+                }
+                break;
+            case Keys.Z:
+                keypress = "z";
+                if (shiftOn) {
+                    keypress = "Z";
+                }
+                break;
+            case Keys.D0:
+                keypress = "0";
+                if (shiftOn) {
+                    keypress = ")";
+                }
+                break;
+            case Keys.D1:
+                keypress = "1";
+                if (shiftOn) {
+                    keypress = "!";
+                }
+                break;
+            case Keys.D2:
+                keypress = "2";
+                if (shiftOn) {
+                    keypress = "@";
+                }
+                break;
+            case Keys.D3:
+                keypress = "3";
+                if (shiftOn) {
+                    keypress = "#";
+                }
+                break;
+            case Keys.D4:
+                keypress = "4";
+                if (shiftOn) {
+                    keypress = "$";
+                }
+                break;
+            case Keys.D5:
+                keypress = "5";
+                if (shiftOn) {
+                    keypress = "%";
+                }
+                break;
+            case Keys.D6:
+                keypress = "6";
+                if (shiftOn) {
+                    keypress = "^";
+                }
+                break;
+            case Keys.D7:
+                keypress = "7";
+                if (shiftOn) {
+                    keypress = "&";
+                }
+                break;
+            case Keys.D8:
+                keypress = "8";
+                if (shiftOn) {
+                    keypress = "*";
+                }
+                break;
+            case Keys.D9:
+                keypress = "9";
+                if (shiftOn) {
+                    keypress = "(";
+                }
+                break;
+            case Keys.OemMinus:
+                keypress = "-";
+                if (shiftOn) {
+                    keypress = "_";
+                }
+                break;
+            case Keys.Oemplus:
+                keypress = "=";
+                if (shiftOn) {
+                    keypress = "+";
+                }
+                break;
+            case Keys.OemQuestion:
+                keypress = "/";
+                if (shiftOn) {
+                    keypress = "?";
+                }
+                break;
+            case Keys.Oemcomma:
+                keypress = ",";
+                if (shiftOn) {
+                    keypress = "<";
+                }
+                break;
+            case Keys.OemPeriod:
+                keypress = ".";
+                if (shiftOn) {
+                    keypress = ">";
+                }
+                break;
+            case Keys.OemSemicolon:
+                keypress = ";";
+                if (shiftOn) {
+                    keypress = ":";
+                }
+                break;
+            case Keys.OemOpenBrackets:
+                keypress = "[";
+                if (shiftOn) {
+                    keypress = "{";
+                }
+                break;
+            case Keys.OemCloseBrackets:
+                keypress = "]";
+                if (shiftOn) {
+                    keypress = "}";
+                }
+                break;
+            case Keys.NumPad0:
+                keypress = "0";
+                break;
+            case Keys.NumPad1:
+                keypress = "1";
+                break;
+            case Keys.NumPad2:
+                keypress = "2";
+                break;
+            case Keys.NumPad3:
+                keypress = "3";
+                break;
+            case Keys.NumPad4:
+                keypress = "4";
+                break;
+            case Keys.NumPad5:
+                keypress = "5";
+                break;
+            case Keys.NumPad6:
+                keypress = "6";
+                break;
+            case Keys.NumPad7:
+                keypress = "7";
+                break;
+            case Keys.NumPad8:
+                keypress = "8";
+                break;
+            case Keys.NumPad9:
+                keypress = "9";
+                break;
+        }
+    } else if (languageValue == 1) {
+        switch (e.KeyCode) {
+            case Keys.Space:
+                keypress = " ";
+                break;
+            case Keys.A:
+                keypress = "a";
+                if (shiftOn) {
+                    keypress = "A";
+                }
+                break;
+            case Keys.B:
+                keypress = "b";
+                if (shiftOn) {
+                    keypress = "B";
+                }
+                break;
+            case Keys.C:
+                keypress = "c";
+                if (shiftOn) {
+                    keypress = "C";
+                }
+                break;
+            case Keys.D:
+                keypress = "d";
+                if (shiftOn) {
+                    keypress = "D";
+                }
+                break;
+            case Keys.E:
+                keypress = "e";
+                if (shiftOn) {
+                    keypress = "E";
+                }
+                break;
+            case Keys.F:
+                keypress = "f";
+                if (shiftOn) {
+                    keypress = "F";
+                }
+                break;
+            case Keys.G:
+                keypress = "g";
+                if (shiftOn) {
+                    keypress = "G";
+                }
+                break;
+            case Keys.H:
+                keypress = "h";
+                if (shiftOn) {
+                    keypress = "H";
+                }
+                break;
+            case Keys.I:
+                keypress = "i";
+                if (shiftOn) {
+                    keypress = "I";
+                }
+                break;
+            case Keys.J:
+                keypress = "j";
+                if (shiftOn) {
+                    keypress = "J";
+                }
+                break;
+            case Keys.K:
+                keypress = "k";
+                if (shiftOn) {
+                    keypress = "K";
+                }
+                break;
+            case Keys.L:
+                keypress = "l";
+                if (shiftOn) {
+                    keypress = "L";
+                }
+                break;
+            case Keys.M:
+                keypress = "m";
+                if (shiftOn) {
+                    keypress = "M";
+                }
+                break;
+            case Keys.N:
+                keypress = "n";
+                if (shiftOn) {
+                    keypress = "N";
+                }
+                break;
+            case Keys.O:
+                keypress = "o";
+                if (shiftOn) {
+                    keypress = "O";
+                }
+                break;
+            case Keys.P:
+                keypress = "p";
+                if (shiftOn) {
+                    keypress = "P";
+                }
+                break;
+            case Keys.Q:
+                keypress = "q";
+                if (shiftOn) {
+                    keypress = "Q";
+                }
+                break;
+            case Keys.R:
+                keypress = "r";
+                if (shiftOn) {
+                    keypress = "R";
+                }
+                break;
+            case Keys.S:
+                keypress = "s";
+                if (shiftOn) {
+                    keypress = "S";
+                }
+                break;
+            case Keys.T:
+                keypress = "t";
+                if (shiftOn) {
+                    keypress = "T";
+                }
+                break;
+            case Keys.U:
+                keypress = "u";
+                if (shiftOn) {
+                    keypress = "U";
+                }
+                break;
+            case Keys.V:
+                keypress = "v";
+                if (shiftOn) {
+                    keypress = "V";
+                }
+                break;
+            case Keys.W:
+                keypress = "w";
+                if (shiftOn) {
+                    keypress = "W";
+                }
+                break;
+            case Keys.X:
+                keypress = "x";
+                if (shiftOn) {
+                    keypress = "X";
+                }
+                break;
+            case Keys.Y:
+                keypress = "y";
+                if (shiftOn) {
+                    keypress = "Y";
+                }
+                break;
+            case Keys.Z:
+                keypress = "z";
+                if (shiftOn) {
+                    keypress = "Z";
+                }
+                break;
+            case Keys.D0:
+                keypress = "à";
+                if (shiftOn) {
+                    keypress = "0";
+                }
+                else if (altOn) {
+                    keypress = "@";
+                }
+                break;
+            case Keys.D1:
                 keypress = "&";
-            }
-            break;
-        case Keys.D8:
-            keypress = "8";
-            if (shiftOn) {
-                keypress = "*";
-            }
-            break;
-        case Keys.D9:
-            keypress = "9";
-            if (shiftOn) {
+                if (shiftOn) {
+                    keypress = "1";
+                }
+                break;
+            case Keys.D2:
+                keypress = "é";
+                if (shiftOn) {
+                    keypress = "2";
+                }
+                else if (altOn) {
+                    keypress = "~";
+                }
+                break;
+            case Keys.D3:
+                keypress = '"';
+                if (shiftOn) {
+                    keypress = "3";
+                }
+                else if (altOn) {
+                    keypress = "#";
+                }
+                break;
+            case Keys.D4:
+                keypress = "'";
+                if (shiftOn) {
+                    keypress = "4";
+                }
+                else if (altOn) {
+                    keypress = "{";
+                }
+                break;
+            case Keys.D5:
                 keypress = "(";
-            }
-            break;
-        case Keys.OemMinus:
-            keypress = "-";
-            if (shiftOn) {
+                if (shiftOn) {
+                    keypress = "5";
+                }
+                else if (altOn) {
+                    keypress = "[";
+                }
+                break;
+            case Keys.D6:
+                keypress = "-";
+                if (shiftOn) {
+                    keypress = "6";
+                }
+                else if (altOn) {
+                    keypress = "|";
+                }
+                break;
+            case Keys.D7:
+                keypress = "è";
+                if (shiftOn) {
+                    keypress = "7";
+                }
+                else if (altOn) {
+                    keypress = "`";
+                }
+                break;
+            case Keys.D8:
                 keypress = "_";
-            }
-            break;
-        case Keys.Oemplus:
-            keypress = "=";
-            if (shiftOn) {
-                keypress = "+";
-            }
-            break;
-        case Keys.OemQuestion:
-            keypress = "/";
-            if (shiftOn) {
-                keypress = "?";
-            }
-            break;
-        case Keys.Oemcomma:
-            keypress = ",";
-            if (shiftOn) {
-                keypress = "<";
-            }
-            break;
-        case Keys.OemPeriod:
-            keypress = ".";
-            if (shiftOn) {
-                keypress = ">";
-            }
-            break;
-        case Keys.OemSemicolon:
-            keypress = ";";
-            if (shiftOn) {
+                if (shiftOn) {
+                    keypress = "8";
+                }
+                else if (altOn) {
+                    keypress = "\\";
+                }
+                break;
+            case Keys.D9:
+                keypress = "ç";
+                if (shiftOn) {
+                    keypress = "9";
+                }
+                else if (altOn) {
+                    keypress = "^";
+                }
+                break;
+            case Keys.OemMinus:
+                keypress = ")";
+                if (shiftOn) {
+                    keypress = "°";
+                }
+                else if (altOn) {
+                    keypress = "]";
+                }
+                break;
+            case Keys.Oemplus:
+                keypress = "=";
+                if (shiftOn) {
+                    keypress = "+";
+                }
+                else if (altOn) {
+                    keypress = "}";
+                }
+                break;
+            case Keys.OemQuestion:
                 keypress = ":";
-            }
-            break;
-        case Keys.OemOpenBrackets:
-            keypress = "[";
-            if (shiftOn) {
-                keypress = "{";
-            }
-            break;
-        case Keys.OemCloseBrackets:
-            keypress = "]";
-            if (shiftOn) {
-                keypress = "}";
-            }
-            break;
-        case Keys.NumPad0:
-            keypress = "0";
-            break;
-        case Keys.NumPad1:
-            keypress = "1";
-            break;
-        case Keys.NumPad2:
-            keypress = "2";
-            break;
-        case Keys.NumPad3:
-            keypress = "3";
-            break;
-        case Keys.NumPad4:
-            keypress = "4";
-            break;
-        case Keys.NumPad5:
-            keypress = "5";
-            break;
-        case Keys.NumPad6:
-            keypress = "6";
-            break;
-        case Keys.NumPad7:
-            keypress = "7";
-            break;
-        case Keys.NumPad8:
-            keypress = "8";
-            break;
-        case Keys.NumPad9:
-            keypress = "9";
-            break;
+                if (shiftOn) {
+                    keypress = "/";
+                }
+                break;
+            case Keys.Oemcomma:
+                keypress = ",";
+                if (shiftOn) {
+                    keypress = "?";
+                }
+                break;
+            case Keys.OemPeriod:
+                keypress = ";";
+                if (shiftOn) {
+                    keypress = ".";
+                }
+                break;
+            case Keys.OemSemicolon:
+                keypress = "$";
+                if (shiftOn) {
+                    keypress = "£";
+                }
+                else if (altOn) {
+                    keypress = "¤";
+                }
+                break;
+            case Keys.OemOpenBrackets:
+                keypress = ")";
+                if (shiftOn) {
+                    keypress = "°";
+                }
+                else if (altOn) {
+                    keypress = "]";
+                }
+                break;
+            case Keys.OemCloseBrackets:
+                keypress = "^";
+                if (shiftOn) {
+                    keypress = "¨";
+                }
+                break;
+            case Keys.Oem3:
+                keypress = "ù";
+                if (shiftOn) {
+                    keypress = "%";
+                }
+                break;
+            case Keys.Oem5:
+                keypress = "*";
+                if (shiftOn) {
+                    keypress = "µ";
+                }
+                break;
+            case Keys.Oem7:
+                keypress = "²";
+                break;
+            case Keys.Oem8:
+                keypress = "!";
+                if (shiftOn) {
+                    keypress = "§";
+                }
+                break;
+            case Keys.Oem102:
+                keypress = "<";
+                if (shiftOn) {
+                    keypress = ">";
+                }
+                break;
+            case Keys.NumPad0:
+                keypress = "0";
+                break;
+            case Keys.NumPad1:
+                keypress = "1";
+                break;
+            case Keys.NumPad2:
+                keypress = "2";
+                break;
+            case Keys.NumPad3:
+                keypress = "3";
+                break;
+            case Keys.NumPad4:
+                keypress = "4";
+                break;
+            case Keys.NumPad5:
+                keypress = "5";
+                break;
+            case Keys.NumPad6:
+                keypress = "6";
+                break;
+            case Keys.NumPad7:
+                keypress = "7";
+                break;
+            case Keys.NumPad8:
+                keypress = "8";
+                break;
+            case Keys.NumPad9:
+                keypress = "9";
+                break;
+        }
     }
 
     if (keypress === "") {
