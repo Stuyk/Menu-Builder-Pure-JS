@@ -1,5 +1,3 @@
-/// <reference path="../../types-gtanetwork/index.d.ts" />
-
 var screenX = API.getScreenResolutionMantainRatio().Width;
 var screenY = API.getScreenResolutionMantainRatio().Height;
 var panelMinX = Math.round(screenX / 32);
@@ -1723,7 +1721,7 @@ API.onKeyDown.connect(function (sender, e) {
         altOn = true;
     }
 
-    if (languageValue == 0) {
+    if (language == 0) {
         switch (e.KeyCode) {
             case Keys.Space:
                 keypress = " ";
@@ -2023,7 +2021,7 @@ API.onKeyDown.connect(function (sender, e) {
                 keypress = "9";
                 break;
         }
-    } else if (languageValue == 1) {
+    } else if (language == 1) {
         switch (e.KeyCode) {
             case Keys.Space:
                 keypress = " ";
