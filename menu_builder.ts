@@ -1,5 +1,7 @@
-var screenX = API.getScreenResolutionMantainRatio().Width;
-var screenY = API.getScreenResolutionMantainRatio().Height;
+﻿/// <reference path="../../types-gt-mp/index.d.ts" />
+
+var screenX = API.getScreenResolutionMaintainRatio().Width;
+var screenY = API.getScreenResolutionMaintainRatio().Height;
 var panelMinX = Math.round(screenX / 32);
 var panelMinY = Math.round(screenY / 18);
 var button = null;
@@ -48,6 +50,7 @@ API.onUpdate.connect(function () {
  * Initialize how many pages our menu is going to have.
  * @param pages - Number of pages.
  */
+
 function createMenu(pages: number) {
     if (menu !== null) {
         isReady = false;
@@ -190,9 +193,9 @@ class PlayerTextNotification {
 
     constructor(text: string) {
         let playerPos = API.getEntityPosition(API.getLocalPlayer()).Add(new Vector3(0, 0, 1));
-        let point = API.worldToScreenMantainRatio(playerPos);
-        this._xPos = Point.Round(point).X;
-        this._yPos = Point.Round(point).Y;
+        let point = API.worldToScreenMaintainRatio(playerPos);
+        this._xPos = Point.prototype.Round(point).X;
+        this._yPos = Point.prototype.Round(point).Y;
         this._drawing = true;
         this._alpha = 255;
         this._text = text;
@@ -474,6 +477,7 @@ class TextElement {
     private _fontB: number;
     private _fontAlpha: number;
     private _fontScale: number;
+    private _fontHeight: number;
     private _shadow: boolean;
     private _outline: boolean;
     // Hover Text
@@ -652,7 +656,7 @@ class TextElement {
         return this._font;
     }
 
-    /** Sets the size of the text. 0.6 is pretty normal. 1 is quite large. */
+    /** Sets the size of the text. 1 is quite large but is default. */
     set FontScale(value: number) {
         this._fontScale = value;
     }
@@ -688,18 +692,18 @@ class TextElement {
 
     private drawAsCenteredAll() {
         if (this._hovered) {
-            API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 20, this._fontScale, this._hoverTextR, this._hoverTextG, this._hoverTextB, this._hoverTextAlpha, this._font, 1, this._shadow, this._outline, this._width);
+            API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 2) - ((this._fontScale * 80) / 2), this._fontScale, this._hoverTextR, this._hoverTextG, this._hoverTextB, this._hoverTextAlpha, this._font, 1, this._shadow, this._outline, this._width);
             return;
         }
 
-        API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 2) - 20, this._fontScale, this._fontR, this._fontG, this._fontB, this._fontAlpha, this._font, 1, this._shadow, this._outline, this._width);
+        API.drawText(this._text, this._offset + this._xPos + (this._width / 2), this._yPos + (this._height / 2) - ((this._fontScale * 80) / 2), this._fontScale, this._fontR, this._fontG, this._fontB, this._fontAlpha, this._font, 1, this._shadow, this._outline, this._width);
     }
     private drawAsCenteredVertically() {
         if (this._hovered) {
-            API.drawText(this._text, this._offset + this._xPos, this._yPos + (this._height / 2) - 20, this._fontScale, this._hoverTextR, this._hoverTextG, this._hoverTextB, this._hoverTextAlpha, this._font, 0, this._shadow, this._outline, this._width);
+            API.drawText(this._text, this._offset + this._xPos, this._yPos + (this._height / 2) - ((this._fontScale * 80) / 2), this._fontScale, this._hoverTextR, this._hoverTextG, this._hoverTextB, this._hoverTextAlpha, this._font, 0, this._shadow, this._outline, this._width);
             return;
         }
-        API.drawText(this._text, this._offset + this._xPos, this._yPos + (this._height / 2) - 20, this._fontScale, this._fontR, this._fontG, this._fontB, this._fontAlpha, this._font, 0, this._shadow, this._outline, this._width);
+        API.drawText(this._text, this._offset + this._xPos, this._yPos + (this._height / 2) - ((this._fontScale * 80) / 2), this._fontScale, this._fontR, this._fontG, this._fontB, this._fontAlpha, this._font, 0, this._shadow, this._outline, this._width);
     }
     private drawAsCentered() {
         if (this._hovered) {
@@ -723,7 +727,12 @@ class Panel {
     private _width: number;
     private _height: number;
     private _line: number;
+    private _border: boolean;
     private _header: boolean;
+    private _headerR: number;
+    private _headerG: number;
+    private _headerB: number;
+    private _headerAlpha: number;
     private _offset: number;
     private _page: number;
     private _r: number;
@@ -771,7 +780,12 @@ class Panel {
         this._width = width * panelMinX;
         this._height = height * panelMinY
         this._alpha = 225;
+        this._border = false;
         this._header = false;
+        this._headerR = 0;
+        this._headerG = 0;
+        this._headerB = 0;
+        this._headerAlpha = 0;
         this._offset = 0;
         this._r = 0;
         this._g = 0;
@@ -843,18 +857,23 @@ class Panel {
             return;
         }
 
-
         if (this._hovered) {
+            if (this._border) {
+                API.drawRectangle(this._xPos - 4, this._yPos - 4, this._width + 8, this._height + 8, 0, 0, 0, 255);
+            }
             API.drawRectangle(this._xPos, this._yPos, this._width, this._height, this._hoverR, this._hoverG, this._hoverB, this._hoverAlpha);
             if (this._header) {
-                API.drawRectangle(this._xPos, this._yPos + this._height - 5, this._width, 5, 255, 255, 255, 50);
+                API.drawRectangle(this._xPos, this._yPos + this._height - 5, this._width, 5, this._headerR, this._headerG, this._headerB, this._headerAlpha);
             }
             return;
         }
 
+        if (this._border) {
+            API.drawRectangle(this._xPos - 4, this._yPos - 4, this._width + 8, this._height + 8, 0, 0, 0, 255);
+        }
         API.drawRectangle(this._xPos, this._yPos, this._width, this._height, this._r, this._g, this._b, this._alpha);
         if (this._header) {
-            API.drawRectangle(this._xPos, this._yPos + this._height - 5, this._width, 5, 255, 255, 255, 50);
+            API.drawRectangle(this._xPos, this._yPos + this._height - 5, this._width, 5, this._headerR, this._headerG, this._headerB, this._headerAlpha);
         }
     }
     private drawBackgroundImage() {
@@ -995,6 +1014,14 @@ class Panel {
         this._hoverAlpha = alpha;
     }
 
+    /** sets RGB Color of Header bar */
+    public HeaderColor(r: number, g: number, b: number, alpha: number) {
+        this._headerR = r;
+        this._headerG = g;
+        this._headerB = b;
+        this._headerAlpha = alpha;
+    }
+
     /** Is there a hover state? */
     set Hoverable(value: boolean) {
         this._hoverable = value;
@@ -1068,6 +1095,15 @@ class Panel {
     }
 
     /** Adds a stylized line under your your box. */
+    set Border(value: boolean) {
+        this._border = value;
+    }
+
+    get Border(): boolean {
+        return this._border;
+    }
+
+    /** Adds a stylized line under your your box. */
     set Header(value: boolean) {
         this._header = value;
     }
@@ -1134,7 +1170,7 @@ class Panel {
             return;
         }
 
-        let cursorPos = API.getCursorPositionMantainRatio();
+        let cursorPos = API.getCursorPositionMaintainRatio();
         if (cursorPos.X > this._xPos && cursorPos.X < (this._xPos + this._width) && cursorPos.Y > this._yPos && cursorPos.Y < this._yPos + this._height) {
             if (!this._hovered) {
                 this._hovered = true;
@@ -1176,8 +1212,8 @@ class Panel {
         }
 
         // Are they even left clicking?
-        if (API.isControlJustPressed(Enums.Controls.CursorAccept)) {
-            let cursorPos = API.getCursorPositionMantainRatio();
+        if (API.isControlJustPressed(237)) {
+            let cursorPos = API.getCursorPositionMaintainRatio();
             if (cursorPos.X > this._xPos && cursorPos.X < (this._xPos + this._width) && cursorPos.Y > this._yPos && cursorPos.Y < this._yPos + this._height) {
                 if (new Date().getTime() < clickDelay + 200) {
                     return;
@@ -1568,7 +1604,7 @@ class InputPanel {
             return;
         }
 
-        let cursorPos = API.getCursorPositionMantainRatio();
+        let cursorPos = API.getCursorPositionMaintainRatio();
         if (cursorPos.X > this._xPos && cursorPos.X < (this._xPos + this._width) && cursorPos.Y > this._yPos && cursorPos.Y < (this._yPos + this._height)) {
             if (this._selected) {
                 this._hovered = false;
@@ -1581,11 +1617,11 @@ class InputPanel {
     }
 
     private isClicked() {
-        if (API.isControlJustPressed(Enums.Controls.CursorAccept)) {
+        if (API.isControlJustPressed(237)) {
             if (new Date().getTime() < clickDelay + 200) {
                 return;
             }
-            let cursorPos = API.getCursorPositionMantainRatio();
+            let cursorPos = API.getCursorPositionMaintainRatio();
             if (cursorPos.X > this._xPos && cursorPos.X < (this._xPos + this._width) && cursorPos.Y > this._yPos && cursorPos.Y < (this._yPos + this._height)) {
                 if (!this._selected) {
                     API.playSoundFrontEnd(this._inputAudioLib, this._inputAudioName);
@@ -1714,7 +1750,6 @@ API.onKeyDown.connect(function (sender, e) {
 
     if (e.Shift) {
         shiftOn = true;
-
     }
 
     if (e.Alt) {
